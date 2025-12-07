@@ -123,6 +123,7 @@ export interface CharacterSkin {
 
 export interface LeaderboardEntry {
   id: string;
+  profile_id: string;
   score: number;
   distance: number;
   character_skin: string;

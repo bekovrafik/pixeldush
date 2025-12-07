@@ -31,6 +31,7 @@ import { useBattlePass } from '@/hooks/useBattlePass';
 import { useBossDefeats } from '@/hooks/useBossDefeats';
 import { useVipSubscription } from '@/hooks/useVipSubscription';
 import { useVipDailyBonus } from '@/hooks/useVipDailyBonus';
+import { useVipUsers } from '@/hooks/useVipUsers';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
@@ -74,6 +75,25 @@ export default function Index() {
   const { season, tiers, userProgress: battlePassProgress, loading: battlePassLoading, addXP, claimReward: claimBattlePassReward, upgradeToPremium, getSeasonTimeRemaining, refetch: refetchBattlePass } = useBattlePass(profile?.id || null);
   const { defeats: bossDefeatsFromDb, recordDefeat, getFastestKill, getTotalDefeats, loading: bossDefeatsLoading } = useBossDefeats(profile?.id || null);
   const { canClaim: canClaimVipBonus, currentDay: vipBonusDay, bonusCoins: vipBonusCoins, allBonuses: allVipBonuses, claimBonus: claimVipBonus, refreshStatus: refreshVipBonus } = useVipDailyBonus(profile?.id || null, isVip);
+  const { vipProfileIds } = useVipUsers();
+
+  // Track if VIP welcome has been shown this session
+  const [vipWelcomeShown, setVipWelcomeShown] = useState(false);
+
+  // Show VIP welcome notification when user first becomes VIP
+  useEffect(() => {
+    if (isVip && !vipWelcomeShown && !vipLoading) {
+      const hasSeenWelcome = localStorage.getItem('pixelRunnerVipWelcomeShown');
+      if (!hasSeenWelcome) {
+        toast.success('🎉 Welcome to VIP!', {
+          description: 'Enjoy ad-free revives, 2x coins, exclusive worlds, and daily bonuses!',
+          duration: 6000,
+        });
+        localStorage.setItem('pixelRunnerVipWelcomeShown', 'true');
+      }
+      setVipWelcomeShown(true);
+    }
+  }, [isVip, vipWelcomeShown, vipLoading]);
 
   // Get skin abilities for game engine
   const selectedSkinData = getSelectedSkinData();
@@ -341,6 +361,7 @@ export default function Index() {
         loading={leaderboardLoading} 
         currentProfileId={profile?.id}
         friends={friends}
+        vipUserIds={vipProfileIds}
       />
       <Shop isOpen={showShop} onClose={() => setShowShop(false)} allSkins={allSkins} ownedSkinIds={ownedSkinIds} selectedSkin={selectedSkin} loading={skinsLoading} isLoggedIn={!!user} currentCoins={profile?.coins || 0} onPurchase={purchaseSkin} onSelect={selectSkin} onOpenAuth={() => { setShowShop(false); setShowAuth(true); }} onPurchaseComplete={refreshProfile} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} isLoggedIn={!!user} profile={profile} onSignUp={signUp} onSignIn={signIn} onSignOut={signOut} />

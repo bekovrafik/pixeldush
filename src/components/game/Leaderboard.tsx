@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Trophy, Medal, Award, Users, Globe } from 'lucide-react';
+import { Trophy, Medal, Award, Users, Globe, Crown } from 'lucide-react';
 import { LeaderboardEntry } from '@/types/game';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -22,10 +22,13 @@ interface LeaderboardProps {
   loading: boolean;
   currentProfileId?: string;
   friends?: FriendWithProfile[];
+  vipUserIds?: string[];
 }
 
-export function Leaderboard({ isOpen, onClose, entries, loading, currentProfileId, friends = [] }: LeaderboardProps) {
+export function Leaderboard({ isOpen, onClose, entries, loading, currentProfileId, friends = [], vipUserIds = [] }: LeaderboardProps) {
   const [showFriendsOnly, setShowFriendsOnly] = useState(false);
+  
+  const vipSet = new Set(vipUserIds);
 
   const friendIds = new Set(friends.map(f => f.friendId));
 
@@ -127,9 +130,17 @@ export function Leaderboard({ isOpen, onClose, entries, loading, currentProfileI
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="font-pixel text-xs text-foreground truncate">
-                      {entry.profiles?.username || 'Anonymous'}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-pixel text-xs text-foreground truncate">
+                        {entry.profiles?.username || 'Anonymous'}
+                      </p>
+                      {vipSet.has(entry.profile_id) && (
+                        <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30">
+                          <Crown className="w-3 h-3 text-yellow-400" />
+                          <span className="font-pixel text-[8px] text-yellow-400">VIP</span>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
                     </p>
