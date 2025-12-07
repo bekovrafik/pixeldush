@@ -615,17 +615,24 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     ctx.save();
     
     // Arena banner at top
+    const isRush = arena.isRushMode;
     const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, 0);
-    gradient.addColorStop(0, 'rgba(139, 0, 0, 0.8)');
-    gradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.9)');
-    gradient.addColorStop(1, 'rgba(139, 0, 0, 0.8)');
+    if (isRush) {
+      gradient.addColorStop(0, 'rgba(255, 0, 0, 0.9)');
+      gradient.addColorStop(0.5, 'rgba(255, 165, 0, 1)');
+      gradient.addColorStop(1, 'rgba(255, 0, 0, 0.9)');
+    } else {
+      gradient.addColorStop(0, 'rgba(139, 0, 0, 0.8)');
+      gradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.9)');
+      gradient.addColorStop(1, 'rgba(139, 0, 0, 0.8)');
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 55, CANVAS_WIDTH, 25);
     
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '10px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('⚔️ BOSS ARENA ⚔️', CANVAS_WIDTH / 2, 72);
+    ctx.fillText(isRush ? '⚡ BOSS RUSH ⚡' : '⚔️ BOSS ARENA ⚔️', CANVAS_WIDTH / 2, 72);
     
     // Boss queue indicator
     const iconSize = 20;
@@ -682,29 +689,39 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     // Arena complete message
     if (!arena.isActive && arena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
       const hasStreak = !arena.hasDied;
-      const boxHeight = hasStreak ? 130 : 100;
+      const isRush = arena.isRushMode;
+      const bonusLines = (hasStreak ? 1 : 0) + (isRush ? 1 : 0);
+      const boxHeight = 100 + bonusLines * 20;
       
       ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
       ctx.fillRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60, 300, boxHeight);
       
-      ctx.strokeStyle = hasStreak ? '#00FF00' : '#FFD700';
+      ctx.strokeStyle = isRush ? '#FF4500' : hasStreak ? '#00FF00' : '#FFD700';
       ctx.lineWidth = 3;
       ctx.strokeRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60, 300, boxHeight);
       
-      ctx.fillStyle = '#FFD700';
+      ctx.fillStyle = isRush ? '#FF4500' : '#FFD700';
       ctx.font = '14px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('🏆 ARENA COMPLETE! 🏆', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 35);
+      ctx.fillText(isRush ? '⚡ RUSH COMPLETE! ⚡' : '🏆 ARENA COMPLETE! 🏆', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 35);
       
+      let bonusY = CANVAS_HEIGHT / 2 - 15;
+      if (isRush) {
+        ctx.fillStyle = '#FF4500';
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.fillText('🔥 RUSH MODE! 1.5X BONUS 🔥', CANVAS_WIDTH / 2, bonusY);
+        bonusY += 18;
+      }
       if (hasStreak) {
         ctx.fillStyle = '#00FF00';
         ctx.font = '10px "Press Start 2P", monospace';
-        ctx.fillText('⚡ PERFECT STREAK! 2X BONUS ⚡', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 15);
+        ctx.fillText('⚡ PERFECT STREAK! 2X BONUS ⚡', CANVAS_WIDTH / 2, bonusY);
+        bonusY += 18;
       }
       
       ctx.fillStyle = '#FFFFFF';
       ctx.font = '10px "Press Start 2P", monospace';
-      const rewardsY = hasStreak ? CANVAS_HEIGHT / 2 + 10 : CANVAS_HEIGHT / 2 + 5;
+      const rewardsY = bonusY + 10;
       ctx.fillText(`+${arena.totalRewards.coins} coins`, CANVAS_WIDTH / 2, rewardsY);
       ctx.fillText(`+${arena.totalRewards.xp} XP`, CANVAS_WIDTH / 2, rewardsY + 20);
     }
