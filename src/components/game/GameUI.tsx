@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User } from 'lucide-react';
-import { GameState } from '@/types/game';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe } from 'lucide-react';
+import { GameState, WORLD_CONFIGS } from '@/types/game';
 
 interface GameUIProps {
   gameState: GameState;
@@ -15,146 +15,99 @@ interface GameUIProps {
   onOpenLeaderboard: () => void;
   onOpenShop: () => void;
   onOpenAuth: () => void;
+  onOpenAchievements: () => void;
+  onOpenDailyReward: () => void;
+  onOpenWorlds: () => void;
 }
 
 export function GameUI({
-  gameState,
-  highScore,
-  isMuted,
-  isLoggedIn,
-  onStart,
-  onPause,
-  onRestart,
-  onRevive,
-  onToggleMute,
-  onOpenLeaderboard,
-  onOpenShop,
-  onOpenAuth,
+  gameState, highScore, isMuted, isLoggedIn,
+  onStart, onPause, onRestart, onRevive, onToggleMute,
+  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds,
 }: GameUIProps) {
-  const { isPlaying, isPaused, isGameOver, score, canRevive, hasRevived } = gameState;
+  const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
 
-  // Start screen
   if (!isPlaying && !isGameOver) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
-        <h1 className="font-pixel text-2xl md:text-4xl text-primary neon-glow mb-2">
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in p-4">
+        <h1 className="font-pixel text-xl sm:text-2xl md:text-4xl text-primary neon-glow mb-1 text-center">
           PIXEL RUNNER
         </h1>
-        <p className="font-pixel text-xs text-muted-foreground mb-8">
+        <p className="font-pixel text-[8px] sm:text-xs text-muted-foreground mb-4 sm:mb-6">
           TAP TO JUMP
         </p>
 
-        <div className="flex flex-col gap-4 items-center">
-          <Button 
-            onClick={onStart}
-            className="game-button text-lg px-8 py-4"
-          >
-            <Play className="w-5 h-5 mr-2" />
-            PLAY
+        <Button onClick={onStart} className="game-button text-sm sm:text-lg px-6 sm:px-8 py-3 sm:py-4 mb-4">
+          <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          PLAY
+        </Button>
+
+        <div className="grid grid-cols-4 sm:flex gap-2 sm:gap-3">
+          <Button variant="outline" size="icon" onClick={onOpenDailyReward} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11">
+            <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
           </Button>
-
-          <div className="flex gap-3 mt-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onOpenLeaderboard}
-              className="border-primary/50 hover:bg-primary/20"
-            >
-              <Trophy className="w-5 h-5" />
+          <Button variant="outline" size="icon" onClick={onOpenAchievements} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+            <Award className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenLeaderboard} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+            <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenWorlds} className="border-secondary/50 hover:bg-secondary/20 w-10 h-10 sm:w-11 sm:h-11">
+            <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenShop} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onToggleMute} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+            {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
+          </Button>
+          {!isLoggedIn && (
+            <Button variant="outline" size="icon" onClick={onOpenAuth} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onOpenShop}
-              className="border-primary/50 hover:bg-primary/20"
-            >
-              <ShoppingBag className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onToggleMute}
-              className="border-primary/50 hover:bg-primary/20"
-            >
-              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </Button>
-            {!isLoggedIn && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onOpenAuth}
-                className="border-primary/50 hover:bg-primary/20"
-              >
-                <User className="w-5 h-5" />
-              </Button>
-            )}
-          </div>
-
-          {highScore > 0 && (
-            <p className="font-pixel text-xs text-accent mt-4">
-              HIGH SCORE: {highScore}
-            </p>
           )}
+        </div>
+
+        <div className="mt-4 flex flex-col items-center gap-1">
+          {highScore > 0 && <p className="font-pixel text-[10px] sm:text-xs text-accent">HIGH SCORE: {highScore}</p>}
+          <p className="font-pixel text-[8px] sm:text-[10px] text-secondary">{WORLD_CONFIGS[world].name}</p>
         </div>
       </div>
     );
   }
 
-  // Game over screen
   if (isGameOver) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 backdrop-blur-sm animate-fade-in">
-        <h2 className="font-pixel text-xl md:text-3xl text-destructive mb-2">
-          GAME OVER
-        </h2>
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 backdrop-blur-sm animate-fade-in p-4">
+        <h2 className="font-pixel text-lg sm:text-xl md:text-3xl text-destructive mb-2">GAME OVER</h2>
         
-        <div className="bg-card/50 rounded-lg p-6 mb-6 text-center">
-          <p className="font-pixel text-xs text-muted-foreground mb-1">SCORE</p>
-          <p className="font-pixel text-2xl text-primary neon-glow">{score}</p>
-          
+        <div className="bg-card/50 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6 text-center">
+          <p className="font-pixel text-[10px] sm:text-xs text-muted-foreground mb-1">SCORE</p>
+          <p className="font-pixel text-xl sm:text-2xl text-primary neon-glow">{score}</p>
+          <p className="font-pixel text-[10px] sm:text-xs text-accent mt-1">+{coins} 🪙</p>
           {score > highScore && highScore > 0 && (
-            <p className="font-pixel text-xs text-accent mt-2 animate-pulse">
-              NEW HIGH SCORE!
-            </p>
+            <p className="font-pixel text-[10px] sm:text-xs text-accent mt-2 animate-pulse">NEW HIGH SCORE!</p>
           )}
         </div>
 
-        <div className="flex flex-col gap-3 items-center">
+        <div className="flex flex-col gap-2 sm:gap-3 items-center w-full max-w-xs">
           {canRevive && !hasRevived && (
-            <Button
-              onClick={onRevive}
-              className="game-button bg-accent text-accent-foreground"
-            >
+            <Button onClick={onRevive} className="game-button bg-accent text-accent-foreground w-full text-xs sm:text-sm py-3">
               <Play className="w-4 h-4 mr-2" />
               REVIVE (WATCH AD)
             </Button>
           )}
-
-          <Button
-            onClick={onRestart}
-            className="game-button"
-          >
+          <Button onClick={onRestart} className="game-button w-full text-xs sm:text-sm py-3">
             <RotateCcw className="w-4 h-4 mr-2" />
             TRY AGAIN
           </Button>
-
-          <div className="flex gap-3 mt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenLeaderboard}
-              className="border-primary/50"
-            >
-              <Trophy className="w-4 h-4 mr-1" />
-              LEADERBOARD
+          <div className="flex gap-2 sm:gap-3 w-full">
+            <Button variant="outline" size="sm" onClick={onOpenLeaderboard} className="flex-1 border-primary/50 text-[10px] sm:text-xs">
+              <Trophy className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              SCORES
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenShop}
-              className="border-primary/50"
-            >
-              <ShoppingBag className="w-4 h-4 mr-1" />
+            <Button variant="outline" size="sm" onClick={onOpenShop} className="flex-1 border-primary/50 text-[10px] sm:text-xs">
+              <ShoppingBag className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               SHOP
             </Button>
           </div>
@@ -163,25 +116,14 @@ export function GameUI({
     );
   }
 
-  // In-game UI
   if (isPlaying) {
     return (
-      <div className="absolute top-4 left-4 flex gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onPause}
-          className="bg-background/50 hover:bg-background/80"
-        >
-          {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+      <div className="absolute top-2 left-2 sm:top-4 sm:left-4 flex gap-1 sm:gap-2">
+        <Button variant="ghost" size="icon" onClick={onPause} className="bg-background/50 hover:bg-background/80 w-8 h-8 sm:w-10 sm:h-10">
+          {isPaused ? <Play className="w-4 h-4 sm:w-5 sm:h-5" /> : <Pause className="w-4 h-4 sm:w-5 sm:h-5" />}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggleMute}
-          className="bg-background/50 hover:bg-background/80"
-        >
-          {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+        <Button variant="ghost" size="icon" onClick={onToggleMute} className="bg-background/50 hover:bg-background/80 w-8 h-8 sm:w-10 sm:h-10">
+          {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
         </Button>
       </div>
     );
