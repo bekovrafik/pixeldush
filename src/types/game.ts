@@ -5,6 +5,7 @@ export interface GameState {
   score: number;
   distance: number;
   speed: number;
+  coins: number;
   canRevive: boolean;
   hasRevived: boolean;
 }
@@ -27,8 +28,21 @@ export interface Obstacle {
   y: number;
   width: number;
   height: number;
-  type: 'spike' | 'block' | 'gap';
+  type: 'spike' | 'block' | 'flying' | 'double' | 'moving';
   passed: boolean;
+  velocityY?: number;
+  minY?: number;
+  maxY?: number;
+}
+
+export interface Coin {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  collected: boolean;
+  animationFrame: number;
 }
 
 export interface ParallaxLayer {
