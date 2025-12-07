@@ -579,6 +579,50 @@ export type Database = {
           },
         ]
       }
+      vip_stats: {
+        Row: {
+          ad_free_revives_used: number
+          created_at: string
+          first_subscribed_at: string | null
+          id: string
+          loyalty_tier: string
+          months_subscribed: number
+          profile_id: string
+          total_bonus_coins_earned: number
+          updated_at: string
+        }
+        Insert: {
+          ad_free_revives_used?: number
+          created_at?: string
+          first_subscribed_at?: string | null
+          id?: string
+          loyalty_tier?: string
+          months_subscribed?: number
+          profile_id: string
+          total_bonus_coins_earned?: number
+          updated_at?: string
+        }
+        Update: {
+          ad_free_revives_used?: number
+          created_at?: string
+          first_subscribed_at?: string | null
+          id?: string
+          loyalty_tier?: string
+          months_subscribed?: number
+          profile_id?: string
+          total_bonus_coins_earned?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vip_stats_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vip_subscriptions: {
         Row: {
           created_at: string

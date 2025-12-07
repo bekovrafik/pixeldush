@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Crown, Check, Sparkles, Zap, Shield, Coins, Ban, Star, Loader2, Settings, Gift } from 'lucide-react';
+import { Crown, Check, Sparkles, Zap, Shield, Coins, Ban, Star, Loader2, Settings, Gift, BarChart3, Shirt } from 'lucide-react';
+import { VipStatsCard } from './VipStatsCard';
+import { VipSkinsSection } from './VipSkinsSection';
+import { VipStats } from '@/hooks/useVipStats';
+import { CharacterSkin } from '@/types/game';
 
 interface VipModalProps {
   isOpen: boolean;
@@ -11,16 +16,25 @@ interface VipModalProps {
   loading: boolean;
   checkoutLoading: boolean;
   isLoggedIn: boolean;
-  // VIP Daily Bonus props
   canClaimDailyBonus?: boolean;
   dailyBonusDay?: number;
   dailyBonusCoins?: number;
   allDailyBonuses?: number[];
   onClaimDailyBonus?: () => Promise<{ error: Error | null; coins: number }>;
+  vipStats?: VipStats | null;
+  currentTier?: { name: string; icon: string; bonusMultiplier: number };
+  nextTier?: { name: string; monthsRequired: number; bonusMultiplier: number } | null;
+  monthsUntilNextTier?: number | null;
+  vipSkins?: CharacterSkin[];
+  ownedSkinIds?: string[];
+  selectedSkin?: string;
+  onSelectSkin?: (skinId: string) => void;
   onStartCheckout: () => void;
   onOpenPortal: () => void;
   onOpenAuth: () => void;
 }
+
+type VipTab = 'benefits' | 'stats' | 'skins';
 
 const VIP_BENEFITS = [
   { icon: Ban, label: 'Ad-Free Gameplay', description: 'No interruptions, ever!' },
@@ -45,10 +59,20 @@ export function VipModal({
   dailyBonusCoins = 100,
   allDailyBonuses = [100, 150, 200, 250, 300, 400, 500],
   onClaimDailyBonus,
+  vipStats = null,
+  currentTier = { name: 'Bronze', icon: '🥉', bonusMultiplier: 1 },
+  nextTier = null,
+  monthsUntilNextTier = null,
+  vipSkins = [],
+  ownedSkinIds = [],
+  selectedSkin = 'default',
+  onSelectSkin,
   onStartCheckout,
   onOpenPortal,
   onOpenAuth,
 }: VipModalProps) {
+  const [activeTab, setActiveTab] = useState<VipTab>('benefits');
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'long',
@@ -59,10 +83,13 @@ export function VipModal({
 
   const handleClaimBonus = async () => {
     if (onClaimDailyBonus) {
-      const result = await onClaimDailyBonus();
-      if (!result.error) {
-        // Success handled by parent
-      }
+      await onClaimDailyBonus();
+    }
+  };
+
+  const handleSelectSkin = (skinId: string) => {
+    if (onSelectSkin) {
+      onSelectSkin(skinId);
     }
   };
 
@@ -81,88 +108,144 @@ export function VipModal({
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         ) : isVip ? (
-          // VIP Active State
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-gradient-to-br from-accent/20 to-yellow-500/20 border border-accent/50 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Crown className="w-6 h-6 text-accent" />
-                  <span className="font-pixel text-lg text-accent">VIP ACTIVE</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Your subscription renews on {subscriptionEnd ? formatDate(subscriptionEnd) : 'N/A'}
-                </p>
-              </div>
-
-              {/* VIP Daily Bonus Section */}
-              <div className="p-3 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30">
-                <div className="flex items-center gap-2 mb-3">
-                  <Gift className="w-5 h-5 text-green-400" />
-                  <span className="font-pixel text-xs text-green-400">DAILY VIP BONUS</span>
-                </div>
-                
-                {/* 7-day bonus calendar */}
-                <div className="grid grid-cols-7 gap-1 mb-3">
-                  {allDailyBonuses.map((coins, i) => {
-                    const day = i + 1;
-                    const isPast = day < dailyBonusDay;
-                    const isCurrent = day === dailyBonusDay;
-                    const isFuture = day > dailyBonusDay;
-                    
-                    return (
-                      <div
-                        key={i}
-                        className={`p-1.5 rounded text-center text-[8px] ${
-                          isCurrent ? 'bg-green-500/30 border border-green-400 ring-2 ring-green-400/50' :
-                          isPast ? 'bg-muted/50 opacity-50' :
-                          'bg-muted/30'
-                        }`}
-                      >
-                        <p className="font-pixel text-[8px] text-muted-foreground">D{day}</p>
-                        <p className={`font-pixel ${isCurrent ? 'text-green-400' : 'text-foreground'}`}>
-                          {coins}
-                        </p>
-                        {isPast && <Check className="w-2.5 h-2.5 mx-auto text-green-400" />}
-                      </div>
-                    );
-                  })}
-                </div>
-                
+              {/* Tab Navigation */}
+              <div className="flex gap-1 p-1 rounded-lg bg-muted/30">
                 <Button
-                  onClick={handleClaimBonus}
-                  disabled={!canClaimDailyBonus}
-                  className={`w-full font-pixel text-xs ${
-                    canClaimDailyBonus 
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600' 
-                      : 'bg-muted'
-                  }`}
+                  variant={activeTab === 'benefits' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setActiveTab('benefits')}
+                  className="flex-1 font-pixel text-[10px] gap-1"
                 >
-                  {canClaimDailyBonus ? (
-                    <>
-                      <Gift className="w-4 h-4 mr-2" />
-                      CLAIM {dailyBonusCoins} COINS
-                    </>
-                  ) : (
-                    'CLAIMED TODAY ✓'
-                  )}
+                  <Gift className="w-3 h-3" />
+                  BENEFITS
+                </Button>
+                <Button
+                  variant={activeTab === 'stats' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setActiveTab('stats')}
+                  className="flex-1 font-pixel text-[10px] gap-1"
+                >
+                  <BarChart3 className="w-3 h-3" />
+                  STATS
+                </Button>
+                <Button
+                  variant={activeTab === 'skins' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setActiveTab('skins')}
+                  className="flex-1 font-pixel text-[10px] gap-1"
+                >
+                  <Shirt className="w-3 h-3" />
+                  SKINS
                 </Button>
               </div>
 
-              <div className="space-y-2">
-                <h3 className="font-pixel text-xs text-muted-foreground">YOUR BENEFITS</h3>
-                {VIP_BENEFITS.map((benefit, i) => (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded bg-muted/30">
-                    <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                      <benefit.icon className="w-4 h-4 text-accent" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-foreground">{benefit.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{benefit.description}</p>
-                    </div>
-                    <Check className="w-4 h-4 text-green-400" />
-                  </div>
-                ))}
+              {/* VIP Status Banner */}
+              <div className="p-3 rounded-lg bg-gradient-to-br from-accent/20 to-yellow-500/20 border border-accent/50 text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <span className="text-xl">{currentTier.icon}</span>
+                  <span className="font-pixel text-sm text-accent">{currentTier.name} VIP</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Renews on {subscriptionEnd ? formatDate(subscriptionEnd) : 'N/A'}
+                </p>
               </div>
+
+              {/* Benefits Tab */}
+              {activeTab === 'benefits' && (
+                <>
+                  {/* VIP Daily Bonus Section */}
+                  <div className="p-3 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Gift className="w-5 h-5 text-green-400" />
+                      <span className="font-pixel text-xs text-green-400">DAILY VIP BONUS</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-7 gap-1 mb-3">
+                      {allDailyBonuses.map((coins, i) => {
+                        const day = i + 1;
+                        const isPast = day < dailyBonusDay;
+                        const isCurrent = day === dailyBonusDay;
+                        
+                        return (
+                          <div
+                            key={i}
+                            className={`p-1.5 rounded text-center text-[8px] ${
+                              isCurrent ? 'bg-green-500/30 border border-green-400 ring-2 ring-green-400/50' :
+                              isPast ? 'bg-muted/50 opacity-50' :
+                              'bg-muted/30'
+                            }`}
+                          >
+                            <p className="font-pixel text-[8px] text-muted-foreground">D{day}</p>
+                            <p className={`font-pixel ${isCurrent ? 'text-green-400' : 'text-foreground'}`}>
+                              {coins}
+                            </p>
+                            {isPast && <Check className="w-2.5 h-2.5 mx-auto text-green-400" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      onClick={handleClaimBonus}
+                      disabled={!canClaimDailyBonus}
+                      className={`w-full font-pixel text-xs ${
+                        canClaimDailyBonus 
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600' 
+                          : 'bg-muted'
+                      }`}
+                    >
+                      {canClaimDailyBonus ? (
+                        <>
+                          <Gift className="w-4 h-4 mr-2" />
+                          CLAIM {dailyBonusCoins} COINS
+                        </>
+                      ) : (
+                        'CLAIMED TODAY ✓'
+                      )}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="font-pixel text-xs text-muted-foreground">YOUR BENEFITS</h3>
+                    {VIP_BENEFITS.map((benefit, i) => (
+                      <div key={i} className="flex items-center gap-3 p-2 rounded bg-muted/30">
+                        <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+                          <benefit.icon className="w-4 h-4 text-accent" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-foreground">{benefit.label}</p>
+                          <p className="text-[10px] text-muted-foreground">{benefit.description}</p>
+                        </div>
+                        <Check className="w-4 h-4 text-green-400" />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Stats Tab */}
+              {activeTab === 'stats' && (
+                <VipStatsCard
+                  stats={vipStats}
+                  currentTier={currentTier}
+                  nextTier={nextTier}
+                  monthsUntilNextTier={monthsUntilNextTier}
+                />
+              )}
+
+              {/* Skins Tab */}
+              {activeTab === 'skins' && (
+                <VipSkinsSection
+                  vipSkins={vipSkins}
+                  ownedSkinIds={ownedSkinIds}
+                  selectedSkin={selectedSkin}
+                  isVip={isVip}
+                  onSelectSkin={handleSelectSkin}
+                  onOpenShop={() => {}}
+                />
+              )}
 
               <Button 
                 onClick={onOpenPortal} 
@@ -175,10 +258,8 @@ export function VipModal({
             </div>
           </ScrollArea>
         ) : (
-          // Non-VIP State
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-4">
-              {/* Hero section */}
               <div className="relative p-4 rounded-lg bg-gradient-to-br from-purple-500/20 via-accent/20 to-yellow-500/20 border border-accent/30 overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-accent/10 rounded-full blur-2xl" />
                 <div className="relative text-center">
@@ -194,7 +275,6 @@ export function VipModal({
                 </div>
               </div>
 
-              {/* Benefits list */}
               <div className="space-y-2">
                 <h3 className="font-pixel text-xs text-muted-foreground">VIP BENEFITS</h3>
                 {VIP_BENEFITS.map((benefit, i) => (
@@ -210,7 +290,6 @@ export function VipModal({
                 ))}
               </div>
 
-              {/* CTA */}
               {isLoggedIn ? (
                 <Button 
                   onClick={onStartCheckout} 

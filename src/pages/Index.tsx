@@ -32,6 +32,7 @@ import { useBossDefeats } from '@/hooks/useBossDefeats';
 import { useVipSubscription } from '@/hooks/useVipSubscription';
 import { useVipDailyBonus } from '@/hooks/useVipDailyBonus';
 import { useVipUsers } from '@/hooks/useVipUsers';
+import { useVipStats } from '@/hooks/useVipStats';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
@@ -76,6 +77,7 @@ export default function Index() {
   const { defeats: bossDefeatsFromDb, recordDefeat, getFastestKill, getTotalDefeats, loading: bossDefeatsLoading } = useBossDefeats(profile?.id || null);
   const { canClaim: canClaimVipBonus, currentDay: vipBonusDay, bonusCoins: vipBonusCoins, allBonuses: allVipBonuses, claimBonus: claimVipBonus, refreshStatus: refreshVipBonus } = useVipDailyBonus(profile?.id || null, isVip);
   const { vipProfileIds } = useVipUsers();
+  const { stats: vipStats, getCurrentTierInfo, getNextTierInfo, getMonthsUntilNextTier, addBonusCoinsEarned } = useVipStats(profile?.id || null, isVip);
 
   // Track if VIP welcome has been shown this session
   const [vipWelcomeShown, setVipWelcomeShown] = useState(false);
@@ -474,9 +476,18 @@ export default function Index() {
             toast.success(`VIP Bonus claimed! +${result.coins} coins! 🎁`);
             refreshProfile();
             refreshVipBonus();
+            addBonusCoinsEarned(result.coins);
           }
           return result;
         }}
+        vipStats={vipStats}
+        currentTier={getCurrentTierInfo()}
+        nextTier={getNextTierInfo()}
+        monthsUntilNextTier={getMonthsUntilNextTier()}
+        vipSkins={allSkins.filter(s => ['diamond', 'phoenix', 'shadow_king'].includes(s.id))}
+        ownedSkinIds={ownedSkinIds}
+        selectedSkin={selectedSkin}
+        onSelectSkin={selectSkin}
         onStartCheckout={startCheckout}
         onOpenPortal={openCustomerPortal}
         onOpenAuth={() => { setShowVip(false); setShowAuth(true); }}
