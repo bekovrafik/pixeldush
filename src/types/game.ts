@@ -115,6 +115,10 @@ export interface CharacterSkin {
   price: number;
   description: string | null;
   is_premium: boolean;
+  speed_bonus: number;
+  coin_multiplier: number;
+  jump_power_bonus: number;
+  shield_duration_bonus: number;
 }
 
 export interface LeaderboardEntry {

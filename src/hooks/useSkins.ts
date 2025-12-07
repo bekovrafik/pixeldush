@@ -37,9 +37,29 @@ export function useSkins(profileId: string | null) {
     setLoading(false);
   }, [profileId]);
 
-  const purchaseSkin = useCallback(async (skinId: string) => {
+  const purchaseSkin = useCallback(async (skinId: string, currentCoins: number) => {
     if (!profileId) return { error: new Error('Must be logged in to purchase') };
 
+    // Find the skin to get its price
+    const skin = allSkins.find(s => s.id === skinId);
+    if (!skin) return { error: new Error('Skin not found') };
+
+    // Check if user has enough coins
+    if (currentCoins < skin.price) {
+      return { error: new Error('Not enough coins') };
+    }
+
+    // Deduct coins from profile
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ coins: currentCoins - skin.price })
+      .eq('id', profileId);
+
+    if (updateError) {
+      return { error: new Error('Failed to deduct coins') };
+    }
+
+    // Add skin to owned_skins
     const { data, error } = await supabase
       .from('owned_skins')
       .insert({
@@ -51,10 +71,16 @@ export function useSkins(profileId: string | null) {
 
     if (!error) {
       setOwnedSkinIds(prev => [...prev, skinId]);
+    } else {
+      // Refund coins if skin purchase failed
+      await supabase
+        .from('profiles')
+        .update({ coins: currentCoins })
+        .eq('id', profileId);
     }
 
     return { data, error };
-  }, [profileId]);
+  }, [profileId, allSkins]);
 
   const selectSkin = useCallback((skinId: string) => {
     if (ownedSkinIds.includes(skinId)) {
@@ -62,6 +88,10 @@ export function useSkins(profileId: string | null) {
       localStorage.setItem('selectedSkin', skinId);
     }
   }, [ownedSkinIds]);
+
+  const getSelectedSkinData = useCallback(() => {
+    return allSkins.find(s => s.id === selectedSkin) || null;
+  }, [allSkins, selectedSkin]);
 
   useEffect(() => {
     fetchSkins();
@@ -76,5 +106,7 @@ export function useSkins(profileId: string | null) {
     loading,
     purchaseSkin,
     selectSkin,
+    getSelectedSkinData,
+    refetchSkins: fetchSkins,
   };
 }

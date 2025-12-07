@@ -12,7 +12,14 @@ const MAX_SPEED = 12;
 const SPEED_INCREMENT = 0.001;
 const POWERUP_DURATION = 300; // frames (~5 seconds at 60fps)
 
-export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city') {
+interface SkinAbilities {
+  speedBonus: number;
+  coinMultiplier: number;
+  jumpPowerBonus: number;
+  shieldDurationBonus: number;
+}
+
+export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }) {
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
     isPaused: false,
@@ -121,15 +128,18 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const jump = useCallback(() => {
     if (!gameState.isPlaying || gameState.isPaused || gameState.isGameOver) return;
     
+    // Apply jump power bonus from skin
+    const jumpForceWithBonus = JUMP_FORCE * (1 + skinAbilities.jumpPowerBonus / 100);
+    
     setPlayer(prev => {
       if (prev.isOnGround) {
         audioManager.playJump();
         setParticles(current => [...current, ...createParticles(prev.x + PLAYER_WIDTH / 2, prev.y + PLAYER_HEIGHT, ['#8B7355'], 5)]);
-        return { ...prev, velocityY: JUMP_FORCE, isJumping: true, isOnGround: false };
+        return { ...prev, velocityY: jumpForceWithBonus, isJumping: true, isOnGround: false };
       }
       return prev;
     });
-  }, [gameState.isPlaying, gameState.isPaused, gameState.isGameOver, createParticles]);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.isGameOver, createParticles, skinAbilities.jumpPowerBonus]);
 
   const startGame = useCallback(() => {
     audioManager.resumeContext();
@@ -176,17 +186,22 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
 
   const activatePowerUp = useCallback((type: PowerUpType) => {
     audioManager.playCoin();
+    // Apply shield duration bonus from skin
+    const duration = type === 'shield' 
+      ? POWERUP_DURATION * (1 + skinAbilities.shieldDurationBonus / 100)
+      : POWERUP_DURATION;
+    
     setGameState(prev => {
       const existing = prev.activePowerUps.find(p => p.type === type);
       if (existing) {
         return {
           ...prev,
-          activePowerUps: prev.activePowerUps.map(p => p.type === type ? { ...p, remainingTime: POWERUP_DURATION } : p),
+          activePowerUps: prev.activePowerUps.map(p => p.type === type ? { ...p, remainingTime: duration } : p),
         };
       }
-      return { ...prev, activePowerUps: [...prev.activePowerUps, { type, remainingTime: POWERUP_DURATION }] };
+      return { ...prev, activePowerUps: [...prev.activePowerUps, { type, remainingTime: duration }] };
     });
-  }, []);
+  }, [skinAbilities.shieldDurationBonus]);
 
   const gameLoop = useCallback((timestamp: number) => {
     if (!lastTimeRef.current) lastTimeRef.current = timestamp;
@@ -218,7 +233,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
 
     // Update game state
     setGameState(prev => {
-      const newSpeed = Math.min(prev.speed + SPEED_INCREMENT, MAX_SPEED);
+      // Apply speed bonus from skin
+      const speedWithBonus = SPEED_INCREMENT * (1 + skinAbilities.speedBonus / 100);
+      const newSpeed = Math.min(prev.speed + speedWithBonus, MAX_SPEED * (1 + skinAbilities.speedBonus / 200));
       const baseScore = Math.floor((prev.distance + newSpeed) / 10);
       const multiplier = prev.activePowerUps.some(p => p.type === 'multiplier') ? 2 : 1;
       
@@ -299,7 +316,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       return updated;
     });
 
-    // Update coins with magnet effect
+    // Update coins with magnet effect and coin multiplier from skin
     setCoins(prev => {
       let coinsCollected = 0;
       const newParticles: Particle[] = [];
@@ -320,7 +337,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         }
         
         if (!coin.collected && checkCollision(player, { ...coin, x: newX, y: newY })) {
-          coinsCollected++;
+          // Apply coin multiplier from skin
+          const coinValue = Math.round(1 * skinAbilities.coinMultiplier);
+          coinsCollected += coinValue;
           audioManager.playCoin();
           newParticles.push(...createParticles(coin.x + coin.width / 2, coin.y + coin.height / 2, ['#FFD700', '#FFA500'], 8));
           return { ...coin, collected: true };
@@ -352,7 +371,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY, life: p.life - 1 })).filter(p => p.life > 0));
 
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, player, hasMagnet, hasShield, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame]);
+  }, [gameState, player, hasMagnet, hasShield, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities]);
 
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {

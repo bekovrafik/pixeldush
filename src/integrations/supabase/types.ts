@@ -46,25 +46,37 @@ export type Database = {
       }
       character_skins: {
         Row: {
+          coin_multiplier: number
           description: string | null
           id: string
           is_premium: boolean
+          jump_power_bonus: number
           name: string
           price: number
+          shield_duration_bonus: number
+          speed_bonus: number
         }
         Insert: {
+          coin_multiplier?: number
           description?: string | null
           id: string
           is_premium?: boolean
+          jump_power_bonus?: number
           name: string
           price?: number
+          shield_duration_bonus?: number
+          speed_bonus?: number
         }
         Update: {
+          coin_multiplier?: number
           description?: string | null
           id?: string
           is_premium?: boolean
+          jump_power_bonus?: number
           name?: string
           price?: number
+          shield_duration_bonus?: number
+          speed_bonus?: number
         }
         Relationships: []
       }
