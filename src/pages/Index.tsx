@@ -63,15 +63,15 @@ export default function Index() {
   const [lastGameDistance, setLastGameDistance] = useState(0);
 
   const { user, profile, signUp, signIn, signOut, refreshProfile } = useAuth();
+  const { isVip, subscriptionEnd, loading: vipLoading, checkoutLoading, startCheckout, openCustomerPortal, refreshStatus: refreshVipStatus } = useVipSubscription(user?.id || null);
   const { entries, loading: leaderboardLoading, fetchLeaderboard, submitScore } = useLeaderboard();
-  const { allSkins, ownedSkinIds, selectedSkin, loading: skinsLoading, purchaseSkin, selectSkin, getSelectedSkinData } = useSkins(profile?.id || null);
+  const { allSkins, ownedSkinIds, selectedSkin, loading: skinsLoading, purchaseSkin, selectSkin, getSelectedSkinData } = useSkins(profile?.id || null, isVip);
   const { achievements, unlockedIds, loading: achievementsLoading, checkAndUnlockAchievements } = useAchievements(profile?.id || null);
   const { currentStreak, canClaim, lastClaimDay, claimReward } = useDailyRewards(profile?.id || null);
   const { friends, pendingRequests, loading: friendsLoading, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, refreshFriends } = useFriends(profile?.id || null);
   const { userProgress: challengeProgress, loading: challengesLoading, updateProgress: updateChallengeProgress, claimReward: claimChallengeReward, refetch: refetchChallenges } = useDailyChallenges(profile?.id || null);
   const { season, tiers, userProgress: battlePassProgress, loading: battlePassLoading, addXP, claimReward: claimBattlePassReward, upgradeToPremium, getSeasonTimeRemaining, refetch: refetchBattlePass } = useBattlePass(profile?.id || null);
   const { defeats: bossDefeatsFromDb, recordDefeat, getFastestKill, getTotalDefeats, loading: bossDefeatsLoading } = useBossDefeats(profile?.id || null);
-  const { isVip, subscriptionEnd, loading: vipLoading, checkoutLoading, startCheckout, openCustomerPortal, refreshStatus: refreshVipStatus } = useVipSubscription(user?.id || null);
 
   // Get skin abilities for game engine
   const selectedSkinData = getSelectedSkinData();
@@ -82,7 +82,7 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
+  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -184,6 +184,13 @@ export default function Index() {
   }, [gameState.isPlaying, gameState.isGameOver, gameState.isPaused, jump, startGame]);
 
   const handleRevive = useCallback(async () => {
+    // VIP users can revive without watching ads
+    if (isVip) {
+      revive();
+      toast.success('VIP Revive!');
+      return;
+    }
+    
     toast.info('Loading ad...');
     const reward = await admobManager.showRewardedAd();
     if (reward) {
@@ -194,7 +201,7 @@ export default function Index() {
     } else {
       toast.error('Ad not available. Please try again.');
     }
-  }, [revive]);
+  }, [revive, isVip]);
 
   const handleToggleMute = useCallback(() => {
     const newMuted = !isSfxMuted;
