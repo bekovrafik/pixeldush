@@ -112,6 +112,41 @@ export type Database = {
           },
         ]
       }
+      boss_defeats: {
+        Row: {
+          boss_type: string
+          defeated_at: string
+          distance_at_defeat: number | null
+          id: string
+          kill_time_seconds: number | null
+          profile_id: string
+        }
+        Insert: {
+          boss_type: string
+          defeated_at?: string
+          distance_at_defeat?: number | null
+          id?: string
+          kill_time_seconds?: number | null
+          profile_id: string
+        }
+        Update: {
+          boss_type?: string
+          defeated_at?: string
+          distance_at_defeat?: number | null
+          id?: string
+          kill_time_seconds?: number | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "boss_defeats_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       character_skins: {
         Row: {
           coin_multiplier: number
@@ -507,6 +542,50 @@ export type Database = {
             foreignKeyName: "user_daily_challenges_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vip_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          profile_id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          profile_id: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          profile_id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vip_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
