@@ -547,6 +547,38 @@ export type Database = {
           },
         ]
       }
+      vip_daily_bonuses: {
+        Row: {
+          bonus_coins: number
+          bonus_day: number
+          claimed_at: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          bonus_coins?: number
+          bonus_day?: number
+          claimed_at?: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          bonus_coins?: number
+          bonus_day?: number
+          claimed_at?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vip_daily_bonuses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vip_subscriptions: {
         Row: {
           created_at: string
