@@ -147,6 +147,83 @@ export type Database = {
           },
         ]
       }
+      boss_rush_challenges: {
+        Row: {
+          challenge_type: string
+          created_at: string
+          description: string
+          icon: string
+          id: string
+          requirement_type: string
+          requirement_value: number
+          reward_coins: number
+          reward_xp: number
+          title: string
+        }
+        Insert: {
+          challenge_type: string
+          created_at?: string
+          description: string
+          icon?: string
+          id?: string
+          requirement_type: string
+          requirement_value: number
+          reward_coins?: number
+          reward_xp?: number
+          title: string
+        }
+        Update: {
+          challenge_type?: string
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          requirement_type?: string
+          requirement_value?: number
+          reward_coins?: number
+          reward_xp?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      boss_rush_scores: {
+        Row: {
+          bosses_defeated: number
+          completion_time_seconds: number
+          created_at: string
+          id: string
+          is_endless_mode: boolean
+          profile_id: string
+          total_score: number
+        }
+        Insert: {
+          bosses_defeated?: number
+          completion_time_seconds: number
+          created_at?: string
+          id?: string
+          is_endless_mode?: boolean
+          profile_id: string
+          total_score?: number
+        }
+        Update: {
+          bosses_defeated?: number
+          completion_time_seconds?: number
+          created_at?: string
+          id?: string
+          is_endless_mode?: boolean
+          profile_id?: string
+          total_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "boss_rush_scores_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       character_skins: {
         Row: {
           coin_multiplier: number
@@ -495,6 +572,54 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "battle_pass_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_boss_rush_challenges: {
+        Row: {
+          challenge_date: string
+          challenge_id: string
+          created_at: string
+          current_progress: number
+          id: string
+          is_claimed: boolean
+          is_completed: boolean
+          profile_id: string
+        }
+        Insert: {
+          challenge_date?: string
+          challenge_id: string
+          created_at?: string
+          current_progress?: number
+          id?: string
+          is_claimed?: boolean
+          is_completed?: boolean
+          profile_id: string
+        }
+        Update: {
+          challenge_date?: string
+          challenge_id?: string
+          created_at?: string
+          current_progress?: number
+          id?: string
+          is_claimed?: boolean
+          is_completed?: boolean
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_boss_rush_challenges_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "boss_rush_challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_boss_rush_challenges_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

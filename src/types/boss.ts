@@ -46,9 +46,13 @@ export interface BossArenaState {
   arenaStartDistance: number;
   hasDied: boolean;
   isRushMode: boolean; // Boss Rush: no breaks, higher difficulty, bigger rewards
+  isEndlessMode: boolean; // Endless: bosses keep spawning with increasing difficulty
+  endlessWave: number; // Current wave in endless mode
+  startTime: number; // Timestamp when arena started (for time tracking)
 }
 
 export const RUSH_MODE_MULTIPLIER = 1.5; // 50% more health/rewards in rush mode
+export const ENDLESS_DIFFICULTY_SCALE = 0.15; // 15% harder per wave
 
 export const ARENA_TRIGGER_DISTANCE = 2000;
 export const ARENA_BREAK_DURATION = 180; // 3 seconds at 60fps
@@ -93,15 +97,17 @@ export const BOSS_CONFIGS: BossConfig[] = [
   },
 ];
 
-export const getArenaBossConfig = (bossType: Boss['type'], bossIndex: number, isRushMode: boolean = false): BossConfig => {
+export const getArenaBossConfig = (bossType: Boss['type'], bossIndex: number, isRushMode: boolean = false, endlessWave: number = 0): BossConfig => {
   const baseConfig = BOSS_CONFIGS.find(c => c.type === bossType)!;
   const difficultyMultiplier = 1 + bossIndex * 0.25;
   const rushMultiplier = isRushMode ? RUSH_MODE_MULTIPLIER : 1;
+  const endlessMultiplier = 1 + (endlessWave * ENDLESS_DIFFICULTY_SCALE);
+  
   return {
     ...baseConfig,
-    health: Math.ceil(baseConfig.health * difficultyMultiplier * rushMultiplier),
-    attackInterval: Math.max(30, Math.floor(baseConfig.attackInterval / (difficultyMultiplier * (isRushMode ? 1.2 : 1)))),
-    rewardCoins: Math.floor(baseConfig.rewardCoins * (1 + bossIndex * 0.5) * rushMultiplier),
-    rewardXP: Math.floor(baseConfig.rewardXP * (1 + bossIndex * 0.5) * rushMultiplier),
+    health: Math.ceil(baseConfig.health * difficultyMultiplier * rushMultiplier * endlessMultiplier),
+    attackInterval: Math.max(20, Math.floor(baseConfig.attackInterval / (difficultyMultiplier * (isRushMode ? 1.2 : 1) * (1 + endlessWave * 0.05)))),
+    rewardCoins: Math.floor(baseConfig.rewardCoins * (1 + bossIndex * 0.5) * rushMultiplier * (1 + endlessWave * 0.3)),
+    rewardXP: Math.floor(baseConfig.rewardXP * (1 + bossIndex * 0.5) * rushMultiplier * (1 + endlessWave * 0.3)),
   };
 };
