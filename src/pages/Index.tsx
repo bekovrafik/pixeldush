@@ -74,7 +74,7 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
+  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -126,11 +126,28 @@ export default function Index() {
           powerupsCollected: powerupsCollectedThisRun,
         });
         
+        // Add Battle Pass XP based on performance
+        const xpFromScore = Math.floor(gameState.score / 10);
+        const xpFromCoins = gameState.coins * 5;
+        const xpFromDistance = Math.floor(gameState.distance / 100);
+        const totalXP = xpFromScore + xpFromCoins + xpFromDistance;
+        if (totalXP > 0) {
+          addXP(totalXP);
+        }
+        
         setPowerupsCollectedThisRun(0);
         refreshProfile();
       }
     }
   }, [gameState.isGameOver]);
+
+  // Handle boss defeat XP reward
+  useEffect(() => {
+    if (bossRewards && profile) {
+      addXP(bossRewards.xp);
+      toast.success(`🏆 Boss Defeated! +${bossRewards.coins} coins, +${bossRewards.xp} XP!`, { duration: 4000 });
+    }
+  }, [bossRewards]);
 
   // Keyboard controls
   useEffect(() => {
@@ -232,6 +249,7 @@ export default function Index() {
           powerUps={powerUps}
           particles={particles}
           boss={boss}
+          bossWarning={bossWarning}
           score={gameState.score}
           coinCount={gameState.coins}
           speed={gameState.speed}
