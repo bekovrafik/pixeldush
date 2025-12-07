@@ -10,6 +10,7 @@ interface GameUIProps {
   isLoggedIn: boolean;
   isVip: boolean;
   rushModeEnabled: boolean;
+  endlessModeEnabled: boolean;
   onStart: () => void;
   onPause: () => void;
   onRestart: () => void;
@@ -17,6 +18,7 @@ interface GameUIProps {
   onGoHome: () => void;
   onToggleMute: () => void;
   onToggleRushMode: () => void;
+  onToggleEndlessMode: () => void;
   onOpenLeaderboard: () => void;
   onOpenShop: () => void;
   onOpenAuth: () => void;
@@ -36,8 +38,8 @@ interface GameUIProps {
 }
 
 export function GameUI({
-  gameState, highScore, isMuted, isLoggedIn, isVip, rushModeEnabled,
-  onStart, onPause, onRestart, onRevive, onGoHome, onToggleMute, onToggleRushMode,
+  gameState, highScore, isMuted, isLoggedIn, isVip, rushModeEnabled, endlessModeEnabled,
+  onStart, onPause, onRestart, onRevive, onGoHome, onToggleMute, onToggleRushMode, onToggleEndlessMode,
   onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore, onOpenDailyChallenges, onOpenSpinWheel, onOpenBattlePass, onOpenBossCollection, onOpenVip,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
@@ -53,22 +55,42 @@ export function GameUI({
           TAP TO JUMP
         </p>
 
-        {/* Boss Rush Mode Toggle */}
-        <Button 
-          onClick={onToggleRushMode}
-          variant={rushModeEnabled ? 'default' : 'outline'}
-          className={`mb-3 font-pixel text-[10px] sm:text-xs px-3 py-1.5 ${
-            rushModeEnabled 
-              ? 'bg-gradient-to-r from-red-600 to-orange-500 border-red-400 animate-pulse' 
-              : 'border-red-500/50 hover:bg-red-500/20'
-          }`}
-        >
-          <Zap className={`w-3 h-3 sm:w-4 sm:h-4 mr-1 ${rushModeEnabled ? 'text-white' : 'text-red-500'}`} />
-          {rushModeEnabled ? '⚡ RUSH MODE ON' : 'BOSS RUSH'}
-        </Button>
+        {/* Mode Selection */}
+        <div className="flex gap-2 mb-3">
+          <Button 
+            onClick={onToggleRushMode}
+            variant={rushModeEnabled ? 'default' : 'outline'}
+            disabled={endlessModeEnabled}
+            className={`font-pixel text-[10px] sm:text-xs px-3 py-1.5 ${
+              rushModeEnabled 
+                ? 'bg-gradient-to-r from-red-600 to-orange-500 border-red-400 animate-pulse' 
+                : 'border-red-500/50 hover:bg-red-500/20'
+            }`}
+          >
+            <Zap className={`w-3 h-3 sm:w-4 sm:h-4 mr-1 ${rushModeEnabled ? 'text-white' : 'text-red-500'}`} />
+            {rushModeEnabled ? '⚡ RUSH' : 'RUSH'}
+          </Button>
+          <Button 
+            onClick={onToggleEndlessMode}
+            variant={endlessModeEnabled ? 'default' : 'outline'}
+            disabled={rushModeEnabled}
+            className={`font-pixel text-[10px] sm:text-xs px-3 py-1.5 ${
+              endlessModeEnabled 
+                ? 'bg-gradient-to-r from-purple-600 to-pink-500 border-purple-400 animate-pulse' 
+                : 'border-purple-500/50 hover:bg-purple-500/20'
+            }`}
+          >
+            ♾️ {endlessModeEnabled ? 'ENDLESS ON' : 'ENDLESS'}
+          </Button>
+        </div>
         {rushModeEnabled && (
           <p className="font-pixel text-[8px] text-red-400 mb-2 animate-pulse">
             No breaks • Harder bosses • 1.5x rewards!
+          </p>
+        )}
+        {endlessModeEnabled && (
+          <p className="font-pixel text-[8px] text-purple-400 mb-2 animate-pulse">
+            Infinite bosses • Scaling difficulty • Survive!
           </p>
         )}
 
