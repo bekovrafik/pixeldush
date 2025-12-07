@@ -1,15 +1,17 @@
-// Simple audio manager using Web Audio API for game sounds
+// Audio Manager with Web Audio API - Separate SFX and Music controls
 class AudioManager {
   private audioContext: AudioContext | null = null;
-  private isMuted: boolean = false;
+  private isSfxMuted: boolean = false;
+  private isMusicMuted: boolean = false;
   private bgmGain: GainNode | null = null;
-  private bgmOscillator: OscillatorNode | null = null;
   private bgmPlaying: boolean = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('pixelRunnerMuted');
-      this.isMuted = saved === 'true';
+      const savedSfx = localStorage.getItem('pixelRunnerSfxMuted');
+      const savedMusic = localStorage.getItem('pixelRunnerMusicMuted');
+      this.isSfxMuted = savedSfx === 'true';
+      this.isMusicMuted = savedMusic === 'true';
     }
   }
 
@@ -20,9 +22,28 @@ class AudioManager {
     return this.audioContext;
   }
 
+  // Legacy method for backward compatibility
   setMuted(muted: boolean) {
-    this.isMuted = muted;
-    localStorage.setItem('pixelRunnerMuted', muted.toString());
+    this.setSfxMuted(muted);
+    this.setMusicMuted(muted);
+  }
+
+  getMuted(): boolean {
+    return this.isSfxMuted && this.isMusicMuted;
+  }
+
+  setSfxMuted(muted: boolean) {
+    this.isSfxMuted = muted;
+    localStorage.setItem('pixelRunnerSfxMuted', muted.toString());
+  }
+
+  getSfxMuted(): boolean {
+    return this.isSfxMuted;
+  }
+
+  setMusicMuted(muted: boolean) {
+    this.isMusicMuted = muted;
+    localStorage.setItem('pixelRunnerMusicMuted', muted.toString());
     
     if (muted && this.bgmPlaying) {
       this.stopBGM();
@@ -31,12 +52,12 @@ class AudioManager {
     }
   }
 
-  getMuted(): boolean {
-    return this.isMuted;
+  getMusicMuted(): boolean {
+    return this.isMusicMuted;
   }
 
   playJump() {
-    if (this.isMuted) return;
+    if (this.isSfxMuted) return;
     
     const ctx = this.getContext();
     const oscillator = ctx.createOscillator();
@@ -57,7 +78,7 @@ class AudioManager {
   }
 
   playCoin() {
-    if (this.isMuted) return;
+    if (this.isSfxMuted) return;
     
     const ctx = this.getContext();
     const oscillator = ctx.createOscillator();
@@ -79,7 +100,7 @@ class AudioManager {
   }
 
   playDeath() {
-    if (this.isMuted) return;
+    if (this.isSfxMuted) return;
     
     const ctx = this.getContext();
     const oscillator = ctx.createOscillator();
@@ -100,7 +121,7 @@ class AudioManager {
   }
 
   playClick() {
-    if (this.isMuted) return;
+    if (this.isSfxMuted) return;
     
     const ctx = this.getContext();
     const oscillator = ctx.createOscillator();
@@ -120,7 +141,7 @@ class AudioManager {
   }
 
   startBGM() {
-    if (this.isMuted || this.bgmPlaying) return;
+    if (this.isMusicMuted || this.bgmPlaying) return;
     
     const ctx = this.getContext();
     this.bgmGain = ctx.createGain();
@@ -151,7 +172,7 @@ class AudioManager {
     let noteIndex = 0;
     
     const loopMelody = () => {
-      if (!this.bgmPlaying || this.isMuted) return;
+      if (!this.bgmPlaying || this.isMusicMuted) return;
       
       const now = ctx.currentTime;
       for (let i = 0; i < 8; i++) {

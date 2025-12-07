@@ -10,6 +10,7 @@ import { WorldsModal } from '@/components/game/WorldsModal';
 import { FriendsModal } from '@/components/game/FriendsModal';
 import { ShareScoreModal } from '@/components/game/ShareScoreModal';
 import { TutorialOverlay } from '@/components/game/TutorialOverlay';
+import { SettingsModal } from '@/components/game/SettingsModal';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
@@ -18,6 +19,7 @@ import { useAchievements } from '@/hooks/useAchievements';
 import { useDailyRewards } from '@/hooks/useDailyRewards';
 import { useFriends } from '@/hooks/useFriends';
 import { audioManager } from '@/lib/audioManager';
+import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +34,9 @@ export default function Index() {
   const [showFriends, setShowFriends] = useState(false);
   const [showShareScore, setShowShareScore] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [isMuted, setIsMuted] = useState(() => audioManager.getMuted());
+  const [showSettings, setShowSettings] = useState(false);
+  const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
+  const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
   const [localHighScore, setLocalHighScore] = useState(0);
   const [currentWorld, setCurrentWorld] = useState<WorldTheme>('city');
   const [lastGameScore, setLastGameScore] = useState(0);
@@ -114,16 +118,30 @@ export default function Index() {
     else if (gameState.isPlaying && !gameState.isPaused) jump();
   }, [gameState.isPlaying, gameState.isGameOver, gameState.isPaused, jump, startGame]);
 
-  const handleRevive = useCallback(() => {
-    toast.info('Simulating ad...');
-    setTimeout(() => { revive(); toast.success('Revived!'); }, 1500);
+  const handleRevive = useCallback(async () => {
+    toast.info('Loading ad...');
+    const reward = await admobManager.showRewardedAd();
+    if (reward) {
+      revive();
+      toast.success('Revived!');
+      // Prepare next ad
+      admobManager.prepareRewardedAd();
+    } else {
+      toast.error('Ad not available. Please try again.');
+    }
   }, [revive]);
 
   const handleToggleMute = useCallback(() => {
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-    audioManager.setMuted(newMuted);
-  }, [isMuted]);
+    const newMuted = !isSfxMuted;
+    setIsSfxMuted(newMuted);
+    audioManager.setSfxMuted(newMuted);
+  }, [isSfxMuted]);
+
+  const handleToggleMusic = useCallback(() => {
+    const newMuted = !isMusicMuted;
+    setIsMusicMuted(newMuted);
+    audioManager.setMusicMuted(newMuted);
+  }, [isMusicMuted]);
 
   const handleClaimDailyReward = useCallback(async () => {
     const result = await claimReward();
@@ -159,6 +177,7 @@ export default function Index() {
 
   const highScore = profile?.high_score || localHighScore;
   const totalDistance = profile?.total_distance || 0;
+  const isMuted = isSfxMuted && isMusicMuted;
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-2 sm:p-4 scanlines overflow-hidden">
@@ -206,6 +225,7 @@ export default function Index() {
           onOpenWorlds={() => setShowWorlds(true)}
           onOpenFriends={() => setShowFriends(true)}
           onShareScore={() => setShowShareScore(true)}
+          onOpenSettings={() => setShowSettings(true)}
         />
       </div>
 
@@ -260,6 +280,14 @@ export default function Index() {
         score={lastGameScore}
         distance={lastGameDistance}
         username={profile?.username}
+      />
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        isMuted={isSfxMuted}
+        isMusicMuted={isMusicMuted}
+        onToggleMute={handleToggleMute}
+        onToggleMusic={handleToggleMusic}
       />
     </div>
   );
