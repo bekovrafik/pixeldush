@@ -47,12 +47,21 @@ export default function Index() {
 
   const { user, profile, signUp, signIn, signOut, refreshProfile } = useAuth();
   const { entries, loading: leaderboardLoading, fetchLeaderboard, submitScore } = useLeaderboard();
-  const { allSkins, ownedSkinIds, selectedSkin, loading: skinsLoading, purchaseSkin, selectSkin } = useSkins(profile?.id || null);
+  const { allSkins, ownedSkinIds, selectedSkin, loading: skinsLoading, purchaseSkin, selectSkin, getSelectedSkinData } = useSkins(profile?.id || null);
   const { achievements, unlockedIds, loading: achievementsLoading, checkAndUnlockAchievements } = useAchievements(profile?.id || null);
   const { currentStreak, canClaim, lastClaimDay, claimReward } = useDailyRewards(profile?.id || null);
   const { friends, pendingRequests, loading: friendsLoading, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, refreshFriends } = useFriends(profile?.id || null);
 
-  const { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive } = useGameEngine(selectedSkin, currentWorld);
+  // Get skin abilities for game engine
+  const selectedSkinData = getSelectedSkinData();
+  const skinAbilities = {
+    speedBonus: selectedSkinData?.speed_bonus || 0,
+    coinMultiplier: selectedSkinData?.coin_multiplier || 1,
+    jumpPowerBonus: selectedSkinData?.jump_power_bonus || 0,
+    shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
+  };
+
+  const { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -260,7 +269,7 @@ export default function Index() {
         currentProfileId={profile?.id}
         friends={friends}
       />
-      <Shop isOpen={showShop} onClose={() => setShowShop(false)} allSkins={allSkins} ownedSkinIds={ownedSkinIds} selectedSkin={selectedSkin} loading={skinsLoading} isLoggedIn={!!user} onPurchase={purchaseSkin} onSelect={selectSkin} onOpenAuth={() => { setShowShop(false); setShowAuth(true); }} />
+      <Shop isOpen={showShop} onClose={() => setShowShop(false)} allSkins={allSkins} ownedSkinIds={ownedSkinIds} selectedSkin={selectedSkin} loading={skinsLoading} isLoggedIn={!!user} currentCoins={profile?.coins || 0} onPurchase={purchaseSkin} onSelect={selectSkin} onOpenAuth={() => { setShowShop(false); setShowAuth(true); }} onPurchaseComplete={refreshProfile} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} isLoggedIn={!!user} profile={profile} onSignUp={signUp} onSignIn={signIn} onSignOut={signOut} />
       <AchievementsModal isOpen={showAchievements} onClose={() => setShowAchievements(false)} achievements={achievements} unlockedIds={unlockedIds} loading={achievementsLoading} />
       <DailyRewardModal isOpen={showDailyReward} onClose={() => setShowDailyReward(false)} currentStreak={currentStreak} canClaim={canClaim} lastClaimDay={lastClaimDay} onClaim={handleClaimDailyReward} isLoggedIn={!!user} onOpenAuth={() => { setShowDailyReward(false); setShowAuth(true); }} />

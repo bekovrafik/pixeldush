@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ShoppingBag, Check, Lock, Sparkles } from 'lucide-react';
+import { ShoppingBag, Check, Lock, Sparkles, Zap, Coins as CoinsIcon, ArrowUp, Shield } from 'lucide-react';
 import { CharacterSkin } from '@/types/game';
 import { toast } from 'sonner';
 
@@ -13,9 +13,11 @@ interface ShopProps {
   selectedSkin: string;
   loading: boolean;
   isLoggedIn: boolean;
-  onPurchase: (skinId: string) => Promise<{ error: Error | null }>;
+  currentCoins: number;
+  onPurchase: (skinId: string, currentCoins: number) => Promise<{ error: Error | null }>;
   onSelect: (skinId: string) => void;
   onOpenAuth: () => void;
+  onPurchaseComplete: () => void;
 }
 
 const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
@@ -25,6 +27,8 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   ninja: { body: '#2C3E50', accent: '#E74C3C' },
   zombie: { body: '#7CB342', accent: '#558B2F' },
   astronaut: { body: '#ECF0F1', accent: '#3498DB' },
+  wizard: { body: '#9B59B6', accent: '#F1C40F' },
+  golden: { body: '#F1C40F', accent: '#E67E22' },
 };
 
 export function Shop({ 
@@ -35,9 +39,11 @@ export function Shop({
   selectedSkin,
   loading,
   isLoggedIn,
+  currentCoins,
   onPurchase, 
   onSelect,
   onOpenAuth,
+  onPurchaseComplete,
 }: ShopProps) {
   const handlePurchase = async (skin: CharacterSkin) => {
     if (!isLoggedIn) {
@@ -46,15 +52,20 @@ export function Shop({
       return;
     }
 
-    // Simulate ad for premium skins, or direct purchase
+    if (currentCoins < skin.price) {
+      toast.error(`Not enough coins! You need ${skin.price - currentCoins} more coins.`);
+      return;
+    }
+
     toast.info('Processing purchase...');
     
-    const { error } = await onPurchase(skin.id);
+    const { error } = await onPurchase(skin.id, currentCoins);
     
     if (error) {
-      toast.error('Failed to purchase skin');
+      toast.error(error.message || 'Failed to purchase skin');
     } else {
       toast.success(`Unlocked ${skin.name}!`);
+      onPurchaseComplete();
     }
   };
 
@@ -65,13 +76,41 @@ export function Shop({
     }
   };
 
+  const renderAbilities = (skin: CharacterSkin) => {
+    const abilities = [];
+    if (skin.speed_bonus > 0) abilities.push({ icon: Zap, label: `+${skin.speed_bonus}% Speed`, color: 'text-yellow-400' });
+    if (skin.coin_multiplier > 1) abilities.push({ icon: CoinsIcon, label: `${skin.coin_multiplier}x Coins`, color: 'text-accent' });
+    if (skin.jump_power_bonus > 0) abilities.push({ icon: ArrowUp, label: `+${skin.jump_power_bonus}% Jump`, color: 'text-green-400' });
+    if (skin.shield_duration_bonus > 0) abilities.push({ icon: Shield, label: `+${skin.shield_duration_bonus}% Shield`, color: 'text-blue-400' });
+    
+    if (abilities.length === 0) return null;
+    
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {abilities.map((ability, index) => (
+          <div key={index} className={`flex items-center gap-0.5 text-[8px] sm:text-[9px] ${ability.color}`}>
+            <ability.icon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span>{ability.label}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] sm:max-w-md bg-card border-primary/30 p-4 sm:p-6 max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle className="font-pixel text-base sm:text-lg text-primary flex items-center gap-2">
-            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
-            CHARACTER SHOP
+          <DialogTitle className="font-pixel text-base sm:text-lg text-primary flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+              CHARACTER SHOP
+            </div>
+            {isLoggedIn && (
+              <span className="text-[10px] sm:text-xs text-accent font-pixel">
+                {currentCoins} 🪙
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -87,6 +126,7 @@ export function Shop({
               {allSkins.map((skin) => {
                 const isOwned = ownedSkinIds.includes(skin.id);
                 const isSelected = selectedSkin === skin.id;
+                const canAfford = currentCoins >= skin.price;
                 const colors = SKIN_COLORS[skin.id] || SKIN_COLORS.default;
 
                 return (
@@ -141,9 +181,10 @@ export function Shop({
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-1">
                         {skin.description}
                       </p>
+                      {renderAbilities(skin)}
                     </div>
 
                     {/* Action */}
@@ -168,7 +209,9 @@ export function Shop({
                         <Button
                           size="sm"
                           onClick={() => handlePurchase(skin)}
-                          className="font-pixel text-[9px] sm:text-[10px] gap-1 h-7 sm:h-8 px-2 sm:px-3"
+                          className={`font-pixel text-[9px] sm:text-[10px] gap-1 h-7 sm:h-8 px-2 sm:px-3 ${
+                            !canAfford && skin.price > 0 ? 'opacity-50' : ''
+                          }`}
                           disabled={skin.price === 0}
                         >
                           {skin.price === 0 ? (
