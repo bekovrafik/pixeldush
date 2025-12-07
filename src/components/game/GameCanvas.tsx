@@ -17,6 +17,7 @@ interface GameCanvasProps {
   selectedSkin: string;
   world: WorldTheme;
   activePowerUps: ActivePowerUp[];
+  isVip?: boolean;
   onTap: () => void;
 }
 
@@ -33,7 +34,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   astronaut: { body: '#ECF0F1', accent: '#3498DB' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, onTap }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, isVip = false, onTap }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -371,7 +372,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     ctx.restore();
   }, []);
 
-  const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, powerUps: ActivePowerUp[]) => {
+  const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, powerUps: ActivePowerUp[], showVipBadge: boolean) => {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(CANVAS_WIDTH - 150, 10, 140, 40);
     ctx.fillStyle = '#4ECDC4';
@@ -392,9 +393,58 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     ctx.arc(25, 30, 8, 0, Math.PI * 2);
     ctx.fill();
     
+    // VIP Badge
+    if (showVipBadge) {
+      const vipX = CANVAS_WIDTH - 160;
+      const vipY = 15;
+      
+      // VIP badge background with glow
+      ctx.save();
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+      ctx.fillRect(vipX - 5, vipY - 2, 55, 25);
+      ctx.restore();
+      
+      // VIP badge
+      const gradient = ctx.createLinearGradient(vipX, vipY, vipX + 45, vipY + 20);
+      gradient.addColorStop(0, '#FFD700');
+      gradient.addColorStop(0.5, '#FFA500');
+      gradient.addColorStop(1, '#FFD700');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(vipX, vipY, 45, 20);
+      
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('VIP', vipX + 22, vipY + 14);
+      
+      // Crown icon
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.moveTo(vipX + 10, vipY - 3);
+      ctx.lineTo(vipX + 15, vipY - 8);
+      ctx.lineTo(vipX + 22, vipY - 3);
+      ctx.lineTo(vipX + 29, vipY - 8);
+      ctx.lineTo(vipX + 34, vipY - 3);
+      ctx.lineTo(vipX + 34, vipY);
+      ctx.lineTo(vipX + 10, vipY);
+      ctx.closePath();
+      ctx.fill();
+      
+      // 2x coin indicator
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(95, 10, 35, 20);
+      ctx.fillStyle = '#00FF00';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('2x', 112, 24);
+    }
+    
     // Power-up indicators
+    const powerUpStartX = showVipBadge ? 135 : 100;
     powerUps.forEach((pu, i) => {
-      const x = 100 + i * 45;
+      const x = powerUpStartX + i * 45;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(x, 10, 40, 40);
       ctx.fillStyle = pu.type === 'shield' ? '#00BFFF' : pu.type === 'magnet' ? '#FF00FF' : '#FFD700';
@@ -466,9 +516,9 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     if (boss) drawBoss(ctx, boss);
     drawParticles(ctx, particles);
     drawPlayer(ctx, player);
-    drawUI(ctx, score, coinCount, activePowerUps);
+    drawUI(ctx, score, coinCount, activePowerUps, isVip);
     if (bossWarning) drawBossWarning(ctx, bossWarning);
-  }, [player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, activePowerUps, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI, drawBossWarning]);
+  }, [player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, activePowerUps, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI, drawBossWarning]);
 
   return (
     <canvas

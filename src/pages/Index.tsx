@@ -30,6 +30,7 @@ import { useDailyChallenges } from '@/hooks/useDailyChallenges';
 import { useBattlePass } from '@/hooks/useBattlePass';
 import { useBossDefeats } from '@/hooks/useBossDefeats';
 import { useVipSubscription } from '@/hooks/useVipSubscription';
+import { useVipDailyBonus } from '@/hooks/useVipDailyBonus';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
@@ -72,6 +73,7 @@ export default function Index() {
   const { userProgress: challengeProgress, loading: challengesLoading, updateProgress: updateChallengeProgress, claimReward: claimChallengeReward, refetch: refetchChallenges } = useDailyChallenges(profile?.id || null);
   const { season, tiers, userProgress: battlePassProgress, loading: battlePassLoading, addXP, claimReward: claimBattlePassReward, upgradeToPremium, getSeasonTimeRemaining, refetch: refetchBattlePass } = useBattlePass(profile?.id || null);
   const { defeats: bossDefeatsFromDb, recordDefeat, getFastestKill, getTotalDefeats, loading: bossDefeatsLoading } = useBossDefeats(profile?.id || null);
+  const { canClaim: canClaimVipBonus, currentDay: vipBonusDay, bonusCoins: vipBonusCoins, allBonuses: allVipBonuses, claimBonus: claimVipBonus, refreshStatus: refreshVipBonus } = useVipDailyBonus(profile?.id || null, isVip);
 
   // Get skin abilities for game engine
   const selectedSkinData = getSelectedSkinData();
@@ -278,6 +280,7 @@ export default function Index() {
           selectedSkin={selectedSkin}
           world={gameState.world}
           activePowerUps={gameState.activePowerUps}
+          isVip={isVip}
           onTap={handleTap}
         />
 
@@ -343,7 +346,7 @@ export default function Index() {
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} isLoggedIn={!!user} profile={profile} onSignUp={signUp} onSignIn={signIn} onSignOut={signOut} />
       <AchievementsModal isOpen={showAchievements} onClose={() => setShowAchievements(false)} achievements={achievements} unlockedIds={unlockedIds} loading={achievementsLoading} />
       <DailyRewardModal isOpen={showDailyReward} onClose={() => setShowDailyReward(false)} currentStreak={currentStreak} canClaim={canClaim} lastClaimDay={lastClaimDay} onClaim={handleClaimDailyReward} isLoggedIn={!!user} onOpenAuth={() => { setShowDailyReward(false); setShowAuth(true); }} />
-      <WorldsModal isOpen={showWorlds} onClose={() => setShowWorlds(false)} currentWorld={currentWorld} totalDistance={totalDistance} onSelectWorld={handleSelectWorld} />
+      <WorldsModal isOpen={showWorlds} onClose={() => setShowWorlds(false)} currentWorld={currentWorld} totalDistance={totalDistance} isVip={isVip} onSelectWorld={handleSelectWorld} onOpenVip={() => { setShowWorlds(false); setShowVip(true); }} />
       <FriendsModal 
         isOpen={showFriends} 
         onClose={() => setShowFriends(false)} 
@@ -440,6 +443,19 @@ export default function Index() {
         loading={vipLoading}
         checkoutLoading={checkoutLoading}
         isLoggedIn={!!user}
+        canClaimDailyBonus={canClaimVipBonus}
+        dailyBonusDay={vipBonusDay}
+        dailyBonusCoins={vipBonusCoins}
+        allDailyBonuses={allVipBonuses}
+        onClaimDailyBonus={async () => {
+          const result = await claimVipBonus();
+          if (!result.error) {
+            toast.success(`VIP Bonus claimed! +${result.coins} coins! 🎁`);
+            refreshProfile();
+            refreshVipBonus();
+          }
+          return result;
+        }}
         onStartCheckout={startCheckout}
         onOpenPortal={openCustomerPortal}
         onOpenAuth={() => { setShowVip(false); setShowAuth(true); }}

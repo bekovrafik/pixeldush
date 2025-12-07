@@ -20,7 +20,7 @@ export interface ActivePowerUp {
 
 export type PowerUpType = 'shield' | 'magnet' | 'multiplier';
 
-export type WorldTheme = 'city' | 'forest' | 'desert' | 'snow' | 'space';
+export type WorldTheme = 'city' | 'forest' | 'desert' | 'snow' | 'space' | 'neon' | 'crystal' | 'volcano';
 
 export interface WorldConfig {
   id: WorldTheme;
@@ -211,7 +211,48 @@ export const WORLD_CONFIGS: Record<WorldTheme, WorldConfig> = {
       buildings: '#4a3a6a',
     },
   },
+  neon: {
+    id: 'neon',
+    name: 'Neon Paradise',
+    unlockDistance: 0,
+    colors: {
+      sky: ['#0f0030', '#1a0050', '#2a0070'],
+      ground: '#1a0a2a',
+      groundAccent: '#ff00ff',
+      buildings: '#00ffff',
+    },
+  },
+  crystal: {
+    id: 'crystal',
+    name: 'Crystal Caverns',
+    unlockDistance: 0,
+    colors: {
+      sky: ['#0a1a2a', '#1a2a3a', '#2a3a4a'],
+      ground: '#4a5a6a',
+      groundAccent: '#7affff',
+      buildings: '#5a7a9a',
+    },
+  },
+  volcano: {
+    id: 'volcano',
+    name: 'Volcanic Fury',
+    unlockDistance: 0,
+    colors: {
+      sky: ['#1a0a00', '#3a1a00', '#5a2a00'],
+      ground: '#2a1a1a',
+      groundAccent: '#ff4400',
+      buildings: '#4a2a1a',
+    },
+  },
 };
+
+// VIP-exclusive world IDs
+export const VIP_WORLD_IDS: WorldTheme[] = ['neon', 'crystal', 'volcano'];
+
+// Helper to get VIP worlds config
+export const VIP_WORLD_CONFIGS = Object.fromEntries(
+  VIP_WORLD_IDS.map(id => [id, { ...WORLD_CONFIGS[id], isVip: true as const }])
+) as Record<string, WorldConfig & { isVip: true }>;
 
 export const DAILY_REWARDS = [
   { day: 1, coins: 10 },
