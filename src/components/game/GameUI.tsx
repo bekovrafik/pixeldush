@@ -8,6 +8,7 @@ interface GameUIProps {
   highScore: number;
   isMuted: boolean;
   isLoggedIn: boolean;
+  isVip: boolean;
   onStart: () => void;
   onPause: () => void;
   onRestart: () => void;
@@ -29,12 +30,13 @@ interface GameUIProps {
   onOpenSpinWheel: () => void;
   onOpenBattlePass: () => void;
   onOpenBossCollection: () => void;
+  onOpenVip: () => void;
 }
 
 export function GameUI({
-  gameState, highScore, isMuted, isLoggedIn,
+  gameState, highScore, isMuted, isLoggedIn, isVip,
   onStart, onPause, onRestart, onRevive, onGoHome, onToggleMute,
-  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore, onOpenDailyChallenges, onOpenSpinWheel, onOpenBattlePass, onOpenBossCollection,
+  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore, onOpenDailyChallenges, onOpenSpinWheel, onOpenBattlePass, onOpenBossCollection, onOpenVip,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
   const navigate = useNavigate();
@@ -87,6 +89,15 @@ export function GameUI({
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenIAPShop} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11" title="Premium Store">
             <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={onOpenVip} 
+            className={`w-10 h-10 sm:w-11 sm:h-11 ${isVip ? 'border-yellow-500/50 bg-yellow-500/10 hover:bg-yellow-500/20' : 'border-purple-500/50 hover:bg-purple-500/20'}`} 
+            title={isVip ? "VIP Active" : "Get VIP"}
+          >
+            <Crown className={`w-4 h-4 sm:w-5 sm:h-5 ${isVip ? 'text-yellow-500' : 'text-purple-500'}`} />
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenCoinStore} className="border-yellow-500/50 hover:bg-yellow-500/20 w-10 h-10 sm:w-11 sm:h-11" title="Free Coins">
             <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />

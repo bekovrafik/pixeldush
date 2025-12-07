@@ -6,7 +6,7 @@ import { BOSS_CONFIGS, BossConfig } from '@/types/boss';
 interface DefeatedBoss {
   type: string;
   defeatedAt: number;
-  killTime?: number; // Time in seconds it took to defeat
+  killTime?: number;
 }
 
 interface BossCollectionModalProps {

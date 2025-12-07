@@ -17,6 +17,7 @@ import { DailyChallengesModal } from '@/components/game/DailyChallengesModal';
 import { SpinWheelModal } from '@/components/game/SpinWheelModal';
 import { BattlePassModal } from '@/components/game/BattlePassModal';
 import { BossCollectionModal } from '@/components/game/BossCollectionModal';
+import { VipModal } from '@/components/game/VipModal';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,6 +28,8 @@ import { useDailyRewards } from '@/hooks/useDailyRewards';
 import { useFriends } from '@/hooks/useFriends';
 import { useDailyChallenges } from '@/hooks/useDailyChallenges';
 import { useBattlePass } from '@/hooks/useBattlePass';
+import { useBossDefeats } from '@/hooks/useBossDefeats';
+import { useVipSubscription } from '@/hooks/useVipSubscription';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
@@ -50,6 +53,7 @@ export default function Index() {
   const [showSpinWheel, setShowSpinWheel] = useState(false);
   const [showBattlePass, setShowBattlePass] = useState(false);
   const [showBossCollection, setShowBossCollection] = useState(false);
+  const [showVip, setShowVip] = useState(false);
   const [powerupsCollectedThisRun, setPowerupsCollectedThisRun] = useState(0);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
@@ -66,6 +70,8 @@ export default function Index() {
   const { friends, pendingRequests, loading: friendsLoading, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, refreshFriends } = useFriends(profile?.id || null);
   const { userProgress: challengeProgress, loading: challengesLoading, updateProgress: updateChallengeProgress, claimReward: claimChallengeReward, refetch: refetchChallenges } = useDailyChallenges(profile?.id || null);
   const { season, tiers, userProgress: battlePassProgress, loading: battlePassLoading, addXP, claimReward: claimBattlePassReward, upgradeToPremium, getSeasonTimeRemaining, refetch: refetchBattlePass } = useBattlePass(profile?.id || null);
+  const { defeats: bossDefeatsFromDb, recordDefeat, getFastestKill, getTotalDefeats, loading: bossDefeatsLoading } = useBossDefeats(profile?.id || null);
+  const { isVip, subscriptionEnd, loading: vipLoading, checkoutLoading, startCheckout, openCustomerPortal, refreshStatus: refreshVipStatus } = useVipSubscription(user?.id || null);
 
   // Get skin abilities for game engine
   const selectedSkinData = getSelectedSkinData();
@@ -143,11 +149,17 @@ export default function Index() {
     }
   }, [gameState.isGameOver]);
 
-  // Handle boss defeat XP reward
+  // Handle boss defeat XP reward and record to database
   useEffect(() => {
     if (bossRewards && profile) {
       addXP(bossRewards.xp);
       toast.success(`🏆 Boss Defeated! +${bossRewards.coins} coins, +${bossRewards.xp} XP!`, { duration: 4000 });
+      
+      // Record the boss defeat to database
+      const lastDefeatedBoss = defeatedBosses[defeatedBosses.length - 1];
+      if (lastDefeatedBoss) {
+        recordDefeat(lastDefeatedBoss, undefined, Math.floor(gameState.distance));
+      }
     }
   }, [bossRewards]);
 
@@ -267,6 +279,7 @@ export default function Index() {
           highScore={highScore}
           isMuted={isMuted}
           isLoggedIn={!!user}
+          isVip={isVip}
           onStart={startGame}
           onPause={pauseGame}
           onRestart={startGame}
@@ -288,6 +301,7 @@ export default function Index() {
           onOpenSpinWheel={() => setShowSpinWheel(true)}
           onOpenBattlePass={() => setShowBattlePass(true)}
           onOpenBossCollection={() => setShowBossCollection(true)}
+          onOpenVip={() => setShowVip(true)}
         />
       </div>
 
@@ -405,7 +419,23 @@ export default function Index() {
       <BossCollectionModal
         isOpen={showBossCollection}
         onClose={() => setShowBossCollection(false)}
-        defeatedBosses={defeatedBosses.map(type => ({ type, defeatedAt: Date.now() }))}
+        defeatedBosses={bossDefeatsFromDb.map(d => ({ 
+          type: d.boss_type, 
+          defeatedAt: new Date(d.defeated_at).getTime(),
+          killTime: d.kill_time_seconds || undefined 
+        }))}
+      />
+      <VipModal
+        isOpen={showVip}
+        onClose={() => setShowVip(false)}
+        isVip={isVip}
+        subscriptionEnd={subscriptionEnd}
+        loading={vipLoading}
+        checkoutLoading={checkoutLoading}
+        isLoggedIn={!!user}
+        onStartCheckout={startCheckout}
+        onOpenPortal={openCustomerPortal}
+        onOpenAuth={() => { setShowVip(false); setShowAuth(true); }}
       />
     </div>
   );
