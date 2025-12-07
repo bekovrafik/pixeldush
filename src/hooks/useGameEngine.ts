@@ -305,6 +305,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           !bossWarning) {
         const countdown = Math.ceil((bossConfig.triggerDistance - currentDistance) / gameState.speed / 60);
         setBossWarning({ name: bossConfig.name, countdown: Math.max(1, countdown) });
+        audioManager.playBossWarning();
       }
       
       // Spawn boss
@@ -391,6 +392,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             type: projectileType,
           };
           newBoss.projectiles = [...newBoss.projectiles, newProjectile];
+          audioManager.playBossAttack();
         } else {
           newBoss.isAttacking = false;
         }
@@ -419,6 +421,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             player.x + player.width > prevBoss.x && player.x < prevBoss.x + prevBoss.width) {
           newBoss.health -= 1;
           setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y, ['#FF4444', '#FF8844', '#FFCC44'], 15)]);
+          audioManager.playBossHit();
           
           if (newBoss.health <= 0) {
             // Boss defeated!
@@ -427,6 +430,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             setGameState(gs => ({ ...gs, coins: gs.coins + bossConfig.rewardCoins }));
             setDefeatedBosses(prev => [...prev, prevBoss.type]);
             setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
+            audioManager.playBossDefeated();
             return null;
           }
           

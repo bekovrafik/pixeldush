@@ -16,6 +16,7 @@ import { CoinStoreModal } from '@/components/game/CoinStoreModal';
 import { DailyChallengesModal } from '@/components/game/DailyChallengesModal';
 import { SpinWheelModal } from '@/components/game/SpinWheelModal';
 import { BattlePassModal } from '@/components/game/BattlePassModal';
+import { BossCollectionModal } from '@/components/game/BossCollectionModal';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
@@ -48,6 +49,7 @@ export default function Index() {
   const [showDailyChallenges, setShowDailyChallenges] = useState(false);
   const [showSpinWheel, setShowSpinWheel] = useState(false);
   const [showBattlePass, setShowBattlePass] = useState(false);
+  const [showBossCollection, setShowBossCollection] = useState(false);
   const [powerupsCollectedThisRun, setPowerupsCollectedThisRun] = useState(0);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
@@ -285,6 +287,7 @@ export default function Index() {
           onOpenDailyChallenges={() => setShowDailyChallenges(true)}
           onOpenSpinWheel={() => setShowSpinWheel(true)}
           onOpenBattlePass={() => setShowBattlePass(true)}
+          onOpenBossCollection={() => setShowBossCollection(true)}
         />
       </div>
 
@@ -398,6 +401,11 @@ export default function Index() {
         onUpgradeToPremium={upgradeToPremium}
         onOpenAuth={() => { setShowBattlePass(false); setShowAuth(true); }}
         onPurchaseComplete={refreshProfile}
+      />
+      <BossCollectionModal
+        isOpen={showBossCollection}
+        onClose={() => setShowBossCollection(false)}
+        defeatedBosses={defeatedBosses.map(type => ({ type, defeatedAt: Date.now() }))}
       />
     </div>
   );

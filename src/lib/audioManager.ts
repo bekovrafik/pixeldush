@@ -120,6 +120,106 @@ class AudioManager {
     oscillator.stop(ctx.currentTime + 0.5);
   }
 
+  // Boss warning - dramatic rising tone
+  playBossWarning() {
+    if (this.isSfxMuted) return;
+    
+    const ctx = this.getContext();
+    
+    // Create multiple oscillators for a more dramatic effect
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(150 + i * 50, ctx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(400 + i * 100, ctx.currentTime + 0.3);
+        
+        gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.3);
+      }, i * 200);
+    }
+  }
+
+  // Boss attack sound - laser/projectile
+  playBossAttack() {
+    if (this.isSfxMuted) return;
+    
+    const ctx = this.getContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.15);
+    
+    gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.15);
+  }
+
+  // Boss hit sound - player damages boss
+  playBossHit() {
+    if (this.isSfxMuted) return;
+    
+    const ctx = this.getContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(200, ctx.currentTime);
+    oscillator.frequency.setValueAtTime(300, ctx.currentTime + 0.05);
+    oscillator.frequency.setValueAtTime(150, ctx.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.15);
+  }
+
+  // Boss defeated - victory fanfare
+  playBossDefeated() {
+    if (this.isSfxMuted) return;
+    
+    const ctx = this.getContext();
+    const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+    
+    notes.forEach((freq, i) => {
+      setTimeout(() => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+        
+        gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.2);
+      }, i * 100);
+    });
+  }
+
   playClick() {
     if (this.isSfxMuted) return;
     
