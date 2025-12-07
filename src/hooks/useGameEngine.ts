@@ -63,6 +63,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const [bossRewards, setBossRewards] = useState<{ coins: number; xp: number } | null>(null);
   const [bossWarning, setBossWarning] = useState<{ name: string; countdown: number } | null>(null);
   const [bossArena, setBossArena] = useState<BossArenaState | null>(null);
+  const [rushModeEnabled, setRushModeEnabled] = useState(false);
   
   const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
@@ -71,6 +72,10 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const powerUpTimerRef = useRef<number>(0);
   const bossSpawnedRef = useRef<Set<string>>(new Set());
   const arenaTriggeredRef = useRef<boolean>(false);
+  
+  const toggleRushMode = useCallback(() => {
+    setRushModeEnabled(prev => !prev);
+  }, []);
 
   const hasMagnet = gameState.activePowerUps.some(p => p.type === 'magnet');
   const hasShield = gameState.activePowerUps.some(p => p.type === 'shield');
@@ -325,20 +330,21 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         totalRewards: { coins: 0, xp: 0 },
         arenaStartDistance: currentDistance,
         hasDied: false,
+        isRushMode: rushModeEnabled,
       });
       audioManager.playBossWarning();
     }
     
     // Handle Boss Arena Mode
     if (bossArena?.isActive) {
-      // During break timer between bosses
-      if (bossArena.breakTimer > 0) {
+      // During break timer between bosses (skip in rush mode)
+      if (bossArena.breakTimer > 0 && !bossArena.isRushMode) {
         setBossArena(prev => prev ? { ...prev, breakTimer: prev.breakTimer - 1 } : null);
         
         // Spawn next boss when break ends and give VIP shield
         if (bossArena.breakTimer === 1 && bossArena.currentBossIndex < ARENA_BOSS_SEQUENCE.length) {
           const nextBossType = ARENA_BOSS_SEQUENCE[bossArena.currentBossIndex];
-          const bossConfig = getArenaBossConfig(nextBossType, bossArena.currentBossIndex);
+          const bossConfig = getArenaBossConfig(nextBossType, bossArena.currentBossIndex, bossArena.isRushMode);
           setBoss({
             id: bossConfig.type,
             x: 850,
@@ -353,8 +359,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             isAttacking: false,
             projectiles: [],
           });
-          // VIP users get free shield at start of each boss fight
-          if (isVip) {
+          // VIP users get free shield at start of each boss fight (not in rush mode)
+          if (isVip && !bossArena.isRushMode) {
             activatePowerUp('shield');
           }
         }
@@ -362,7 +368,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       // Spawn first boss if not spawned yet
       else if (!boss && bossArena.currentBossIndex === 0 && bossArena.bossesDefeated.length === 0) {
         const firstBossType = ARENA_BOSS_SEQUENCE[0];
-        const bossConfig = getArenaBossConfig(firstBossType, 0);
+        const bossConfig = getArenaBossConfig(firstBossType, 0, bossArena.isRushMode);
         setBoss({
           id: bossConfig.type,
           x: 850,
@@ -377,10 +383,29 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           isAttacking: false,
           projectiles: [],
         });
-        // VIP users get free shield at start of first boss fight
-        if (isVip) {
+        // VIP users get free shield at start of first boss fight (not in rush mode)
+        if (isVip && !bossArena.isRushMode) {
           activatePowerUp('shield');
         }
+      }
+      // In rush mode, immediately spawn next boss after defeat (no break)
+      else if (!boss && bossArena.isRushMode && bossArena.currentBossIndex < ARENA_BOSS_SEQUENCE.length && bossArena.bossesDefeated.length > 0) {
+        const nextBossType = ARENA_BOSS_SEQUENCE[bossArena.currentBossIndex];
+        const bossConfig = getArenaBossConfig(nextBossType, bossArena.currentBossIndex, true);
+        setBoss({
+          id: bossConfig.type,
+          x: 850,
+          y: GROUND_Y - bossConfig.height,
+          width: bossConfig.width,
+          height: bossConfig.height,
+          health: bossConfig.health,
+          maxHealth: bossConfig.health,
+          type: bossConfig.type,
+          phase: 1,
+          attackTimer: bossConfig.attackInterval,
+          isAttacking: false,
+          projectiles: [],
+        });
       }
     }
     
@@ -520,7 +545,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           if (newBoss.health <= 0) {
             // Boss defeated!
             const bossConfig = bossArena 
-              ? getArenaBossConfig(prevBoss.type, bossArena.currentBossIndex)
+              ? getArenaBossConfig(prevBoss.type, bossArena.currentBossIndex, bossArena.isRushMode)
               : BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
             setBossRewards({ coins: bossConfig.rewardCoins, xp: bossConfig.rewardXP });
             setGameState(gs => ({ ...gs, coins: gs.coins + bossConfig.rewardCoins }));
@@ -537,16 +562,18 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
               };
               
               if (newBossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
-                // Arena complete! Apply streak bonus if no deaths
+                // Arena complete! Apply streak bonus if no deaths, rush mode bonus
                 const streakMultiplier = bossArena.hasDied ? 1 : 2;
+                const rushBonus = bossArena.isRushMode ? 1.5 : 1;
                 const finalRewards = {
-                  coins: baseNewRewards.coins * streakMultiplier,
-                  xp: baseNewRewards.xp * streakMultiplier,
+                  coins: Math.floor(baseNewRewards.coins * streakMultiplier * rushBonus),
+                  xp: Math.floor(baseNewRewards.xp * streakMultiplier * rushBonus),
                 };
                 
-                // Add streak bonus coins to game state
-                if (!bossArena.hasDied) {
-                  setGameState(gs => ({ ...gs, coins: gs.coins + baseNewRewards.coins })); // Double the coins (already added once)
+                // Add streak/rush bonus coins to game state
+                const bonusCoins = finalRewards.coins - baseNewRewards.coins;
+                if (bonusCoins > 0) {
+                  setGameState(gs => ({ ...gs, coins: gs.coins + bonusCoins }));
                 }
                 
                 setBossArena({
@@ -557,13 +584,13 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
                   breakTimer: 0,
                 });
               } else {
-                // Start break before next boss
+                // In rush mode, skip break timer (set to 0), otherwise set normal break
                 setBossArena({
                   ...bossArena,
                   currentBossIndex: bossArena.currentBossIndex + 1,
                   bossesDefeated: newBossesDefeated,
                   totalRewards: baseNewRewards,
-                  breakTimer: ARENA_BREAK_DURATION,
+                  breakTimer: bossArena.isRushMode ? 0 : ARENA_BREAK_DURATION,
                 });
               }
             }
@@ -679,5 +706,5 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return () => { if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current); };
   }, [gameState.isPlaying, gameState.isPaused, gameLoop]);
 
-  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, jump, startGame, pauseGame, revive, goHome };
+  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, jump, startGame, pauseGame, revive, goHome, toggleRushMode };
 }

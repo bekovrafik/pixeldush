@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown, Home, Coins, Target, RotateCw, Star, Swords } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown, Home, Coins, Target, RotateCw, Star, Swords, Zap } from 'lucide-react';
 import { GameState, WORLD_CONFIGS } from '@/types/game';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,12 +9,14 @@ interface GameUIProps {
   isMuted: boolean;
   isLoggedIn: boolean;
   isVip: boolean;
+  rushModeEnabled: boolean;
   onStart: () => void;
   onPause: () => void;
   onRestart: () => void;
   onRevive: () => void;
   onGoHome: () => void;
   onToggleMute: () => void;
+  onToggleRushMode: () => void;
   onOpenLeaderboard: () => void;
   onOpenShop: () => void;
   onOpenAuth: () => void;
@@ -34,8 +36,8 @@ interface GameUIProps {
 }
 
 export function GameUI({
-  gameState, highScore, isMuted, isLoggedIn, isVip,
-  onStart, onPause, onRestart, onRevive, onGoHome, onToggleMute,
+  gameState, highScore, isMuted, isLoggedIn, isVip, rushModeEnabled,
+  onStart, onPause, onRestart, onRevive, onGoHome, onToggleMute, onToggleRushMode,
   onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore, onOpenDailyChallenges, onOpenSpinWheel, onOpenBattlePass, onOpenBossCollection, onOpenVip,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
@@ -47,9 +49,28 @@ export function GameUI({
         <h1 className="font-pixel text-xl sm:text-2xl md:text-4xl text-primary neon-glow mb-1 text-center">
           PIXEL RUNNER
         </h1>
-        <p className="font-pixel text-[8px] sm:text-xs text-muted-foreground mb-4 sm:mb-6">
+        <p className="font-pixel text-[8px] sm:text-xs text-muted-foreground mb-2 sm:mb-3">
           TAP TO JUMP
         </p>
+
+        {/* Boss Rush Mode Toggle */}
+        <Button 
+          onClick={onToggleRushMode}
+          variant={rushModeEnabled ? 'default' : 'outline'}
+          className={`mb-3 font-pixel text-[10px] sm:text-xs px-3 py-1.5 ${
+            rushModeEnabled 
+              ? 'bg-gradient-to-r from-red-600 to-orange-500 border-red-400 animate-pulse' 
+              : 'border-red-500/50 hover:bg-red-500/20'
+          }`}
+        >
+          <Zap className={`w-3 h-3 sm:w-4 sm:h-4 mr-1 ${rushModeEnabled ? 'text-white' : 'text-red-500'}`} />
+          {rushModeEnabled ? '⚡ RUSH MODE ON' : 'BOSS RUSH'}
+        </Button>
+        {rushModeEnabled && (
+          <p className="font-pixel text-[8px] text-red-400 mb-2 animate-pulse">
+            No breaks • Harder bosses • 1.5x rewards!
+          </p>
+        )}
 
         <Button onClick={onStart} className="game-button text-sm sm:text-lg px-6 sm:px-8 py-3 sm:py-4 mb-4">
           <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />

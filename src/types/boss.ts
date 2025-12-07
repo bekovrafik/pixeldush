@@ -44,8 +44,11 @@ export interface BossArenaState {
   breakTimer: number;
   totalRewards: { coins: number; xp: number };
   arenaStartDistance: number;
-  hasDied: boolean; // Track if player died during arena for streak bonus
+  hasDied: boolean;
+  isRushMode: boolean; // Boss Rush: no breaks, higher difficulty, bigger rewards
 }
+
+export const RUSH_MODE_MULTIPLIER = 1.5; // 50% more health/rewards in rush mode
 
 export const ARENA_TRIGGER_DISTANCE = 2000;
 export const ARENA_BREAK_DURATION = 180; // 3 seconds at 60fps
@@ -90,14 +93,15 @@ export const BOSS_CONFIGS: BossConfig[] = [
   },
 ];
 
-export const getArenaBossConfig = (bossType: Boss['type'], bossIndex: number): BossConfig => {
+export const getArenaBossConfig = (bossType: Boss['type'], bossIndex: number, isRushMode: boolean = false): BossConfig => {
   const baseConfig = BOSS_CONFIGS.find(c => c.type === bossType)!;
-  const difficultyMultiplier = 1 + bossIndex * 0.25; // Each subsequent boss is 25% harder
+  const difficultyMultiplier = 1 + bossIndex * 0.25;
+  const rushMultiplier = isRushMode ? RUSH_MODE_MULTIPLIER : 1;
   return {
     ...baseConfig,
-    health: Math.ceil(baseConfig.health * difficultyMultiplier),
-    attackInterval: Math.max(30, Math.floor(baseConfig.attackInterval / difficultyMultiplier)),
-    rewardCoins: Math.floor(baseConfig.rewardCoins * (1 + bossIndex * 0.5)),
-    rewardXP: Math.floor(baseConfig.rewardXP * (1 + bossIndex * 0.5)),
+    health: Math.ceil(baseConfig.health * difficultyMultiplier * rushMultiplier),
+    attackInterval: Math.max(30, Math.floor(baseConfig.attackInterval / (difficultyMultiplier * (isRushMode ? 1.2 : 1)))),
+    rewardCoins: Math.floor(baseConfig.rewardCoins * (1 + bossIndex * 0.5) * rushMultiplier),
+    rewardXP: Math.floor(baseConfig.rewardXP * (1 + bossIndex * 0.5) * rushMultiplier),
   };
 };

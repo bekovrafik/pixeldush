@@ -106,7 +106,7 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
+  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, jump, startGame, pauseGame, revive, goHome, toggleRushMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -314,12 +314,14 @@ export default function Index() {
           isMuted={isMuted}
           isLoggedIn={!!user}
           isVip={isVip}
+          rushModeEnabled={rushModeEnabled}
           onStart={startGame}
           onPause={pauseGame}
           onRestart={startGame}
           onRevive={handleRevive}
           onGoHome={goHome}
           onToggleMute={handleToggleMute}
+          onToggleRushMode={toggleRushMode}
           onOpenLeaderboard={() => { fetchLeaderboard(); refreshFriends(); setShowLeaderboard(true); }}
           onOpenShop={() => setShowShop(true)}
           onOpenAuth={() => setShowAuth(true)}
