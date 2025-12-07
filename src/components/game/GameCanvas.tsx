@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { Player, Obstacle, Particle, Coin, PowerUp, WorldTheme, WORLD_CONFIGS, ActivePowerUp } from '@/types/game';
+import { Boss, BOSS_CONFIGS } from '@/types/boss';
 
 interface GameCanvasProps {
   player: Player;
@@ -7,6 +8,7 @@ interface GameCanvasProps {
   coins: Coin[];
   powerUps: PowerUp[];
   particles: Particle[];
+  boss: Boss | null;
   score: number;
   coinCount: number;
   speed: number;
@@ -30,7 +32,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   astronaut: { body: '#ECF0F1', accent: '#3498DB' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, particles, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, onTap }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, onTap }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -266,6 +268,108 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, scor
     ctx.globalAlpha = 1;
   }, []);
 
+  const drawBoss = useCallback((ctx: CanvasRenderingContext2D, b: Boss) => {
+    const bossConfig = BOSS_CONFIGS.find(c => c.type === b.type);
+    if (!bossConfig) return;
+
+    ctx.save();
+    
+    // Boss shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(b.x + b.width / 2, GROUND_Y + 5, b.width / 2, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Boss body glow
+    const pulseIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+    ctx.globalAlpha = 0.3 * pulseIntensity;
+    ctx.fillStyle = bossConfig.color;
+    ctx.fillRect(b.x - 10, b.y - 10, b.width + 20, b.height + 20);
+    ctx.globalAlpha = 1;
+    
+    // Boss body
+    ctx.fillStyle = bossConfig.color;
+    ctx.fillRect(b.x, b.y, b.width, b.height);
+    
+    // Boss details based on type
+    if (b.type === 'mech') {
+      // Mech eyes
+      ctx.fillStyle = '#FF0000';
+      ctx.fillRect(b.x + 15, b.y + 20, 15, 10);
+      ctx.fillRect(b.x + b.width - 30, b.y + 20, 15, 10);
+      // Mech arms
+      ctx.fillStyle = '#AA3333';
+      ctx.fillRect(b.x - 20, b.y + 40, 20, 40);
+      ctx.fillRect(b.x + b.width, b.y + 40, 20, 40);
+    } else if (b.type === 'dragon') {
+      // Dragon wings
+      const wingFlap = Math.sin(Date.now() / 150) * 15;
+      ctx.fillStyle = '#7722AA';
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y + 30);
+      ctx.lineTo(b.x - 40, b.y + 10 + wingFlap);
+      ctx.lineTo(b.x, b.y + 60);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(b.x + b.width, b.y + 30);
+      ctx.lineTo(b.x + b.width + 40, b.y + 10 - wingFlap);
+      ctx.lineTo(b.x + b.width, b.y + 60);
+      ctx.closePath();
+      ctx.fill();
+      // Dragon eyes
+      ctx.fillStyle = '#FFFF00';
+      ctx.beginPath();
+      ctx.arc(b.x + 25, b.y + 25, 8, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (b.type === 'titan') {
+      // Titan crown
+      ctx.fillStyle = '#FFD700';
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(b.x + 10 + i * 25, b.y);
+        ctx.lineTo(b.x + 22 + i * 25, b.y - 20);
+        ctx.lineTo(b.x + 35 + i * 25, b.y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Titan face
+      ctx.fillStyle = '#8B0000';
+      ctx.fillRect(b.x + 30, b.y + 30, 20, 15);
+      ctx.fillRect(b.x + b.width - 50, b.y + 30, 20, 15);
+    }
+    
+    // Health bar
+    const healthBarWidth = b.width;
+    const healthBarHeight = 8;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(b.x, b.y - 20, healthBarWidth, healthBarHeight);
+    ctx.fillStyle = b.health > b.maxHealth / 2 ? '#00FF00' : b.health > b.maxHealth / 4 ? '#FFFF00' : '#FF0000';
+    ctx.fillRect(b.x, b.y - 20, (b.health / b.maxHealth) * healthBarWidth, healthBarHeight);
+    
+    // Boss name
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(bossConfig.name, b.x + b.width / 2, b.y - 25);
+    
+    // Draw projectiles
+    b.projectiles.forEach(p => {
+      ctx.fillStyle = p.type === 'laser' ? '#FF0000' : p.type === 'fireball' ? '#FF6600' : '#FFFF00';
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, p.height / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Projectile trail
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(p.x + p.width, p.y + p.height / 4, 20, p.height / 2);
+      ctx.globalAlpha = 0.25;
+      ctx.fillRect(p.x + p.width + 20, p.y + p.height / 3, 15, p.height / 3);
+      ctx.globalAlpha = 1;
+    });
+    
+    ctx.restore();
+  }, []);
+
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, powerUps: ActivePowerUp[]) => {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(CANVAS_WIDTH - 150, 10, 140, 40);
@@ -317,10 +421,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, scor
     obstacles.forEach(obs => drawObstacle(ctx, obs));
     coins.forEach(coin => drawCoin(ctx, coin));
     powerUps.forEach(pu => drawPowerUp(ctx, pu));
+    if (boss) drawBoss(ctx, boss);
     drawParticles(ctx, particles);
     drawPlayer(ctx, player);
     drawUI(ctx, score, coinCount, activePowerUps);
-  }, [player, obstacles, coins, powerUps, particles, score, coinCount, speed, isPlaying, activePowerUps, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawParticles, drawUI]);
+  }, [player, obstacles, coins, powerUps, particles, boss, score, coinCount, speed, isPlaying, activePowerUps, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI]);
 
   return (
     <canvas

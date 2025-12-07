@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameState, Player, Obstacle, Particle, Coin, PowerUp, PowerUpType, WorldTheme, WORLD_CONFIGS } from '@/types/game';
+import { Boss, BossProjectile, BOSS_CONFIGS } from '@/types/boss';
 import { audioManager } from '@/lib/audioManager';
 
 const GRAVITY = 0.8;
@@ -52,12 +53,16 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const [coins, setCoins] = useState<Coin[]>([]);
   const [powerUps, setPowerUps] = useState<PowerUp[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [boss, setBoss] = useState<Boss | null>(null);
+  const [defeatedBosses, setDefeatedBosses] = useState<string[]>([]);
+  const [bossRewards, setBossRewards] = useState<{ coins: number; xp: number } | null>(null);
   
   const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const obstacleTimerRef = useRef<number>(0);
   const coinTimerRef = useRef<number>(0);
   const powerUpTimerRef = useRef<number>(0);
+  const bossSpawnedRef = useRef<Set<string>>(new Set());
 
   const hasMagnet = gameState.activePowerUps.some(p => p.type === 'magnet');
   const hasShield = gameState.activePowerUps.some(p => p.type === 'shield');
@@ -160,6 +165,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setCoins([]);
     setPowerUps([]);
     setParticles([]);
+    setBoss(null);
+    setBossRewards(null);
+    bossSpawnedRef.current = new Set();
     obstacleTimerRef.current = 0;
     coinTimerRef.current = 0;
     powerUpTimerRef.current = 0;
@@ -186,6 +194,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setCoins([]);
     setPowerUps([]);
     setParticles([]);
+    setBoss(null);
+    setBossRewards(null);
   }, [currentWorld]);
 
   const endGame = useCallback(() => {
@@ -282,17 +292,43 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       };
     });
 
-    // Generate obstacles
-    obstacleTimerRef.current += 1;
-    const minInterval = Math.max(60, 120 - gameState.speed * 5);
-    if (obstacleTimerRef.current >= minInterval + Math.random() * 60) {
-      obstacleTimerRef.current = 0;
-      const newObs = generateObstacle();
-      setObstacles(prev => {
-        const obs = [...prev, newObs];
-        if (newObs.type === 'double') obs.push({ ...newObs, id: Math.random().toString(36).substr(2, 9), x: newObs.x + 50 });
-        return obs;
-      });
+    // Check for boss spawn
+    const currentDistance = gameState.distance;
+    for (const bossConfig of BOSS_CONFIGS) {
+      if (!bossSpawnedRef.current.has(bossConfig.type) && 
+          currentDistance >= bossConfig.triggerDistance && 
+          currentDistance < bossConfig.triggerDistance + 100) {
+        bossSpawnedRef.current.add(bossConfig.type);
+        setBoss({
+          id: bossConfig.type,
+          x: 850,
+          y: GROUND_Y - bossConfig.height,
+          width: bossConfig.width,
+          height: bossConfig.height,
+          health: bossConfig.health,
+          maxHealth: bossConfig.health,
+          type: bossConfig.type,
+          phase: 1,
+          attackTimer: bossConfig.attackInterval,
+          isAttacking: false,
+          projectiles: [],
+        });
+      }
+    }
+
+    // Generate obstacles (skip during boss fight)
+    if (!boss) {
+      obstacleTimerRef.current += 1;
+      const minInterval = Math.max(60, 120 - gameState.speed * 5);
+      if (obstacleTimerRef.current >= minInterval + Math.random() * 60) {
+        obstacleTimerRef.current = 0;
+        const newObs = generateObstacle();
+        setObstacles(prev => {
+          const obs = [...prev, newObs];
+          if (newObs.type === 'double') obs.push({ ...newObs, id: Math.random().toString(36).substr(2, 9), x: newObs.x + 50 });
+          return obs;
+        });
+      }
     }
 
     // Generate coins
@@ -307,6 +343,89 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     if (powerUpTimerRef.current >= 400 + Math.random() * 200) {
       powerUpTimerRef.current = 0;
       setPowerUps(prev => [...prev, generatePowerUp()]);
+    }
+
+    // Update boss
+    if (boss) {
+      setBoss(prevBoss => {
+        if (!prevBoss) return null;
+        
+        let newBoss = { ...prevBoss };
+        
+        // Boss attack timer
+        newBoss.attackTimer -= 1;
+        if (newBoss.attackTimer <= 0) {
+          const bossConfig = BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
+          newBoss.attackTimer = bossConfig.attackInterval / newBoss.phase;
+          newBoss.isAttacking = true;
+          
+          // Create projectile
+          const projectileType = prevBoss.type === 'mech' ? 'laser' : prevBoss.type === 'dragon' ? 'fireball' : 'missile';
+          const newProjectile: BossProjectile = {
+            id: Math.random().toString(36).substr(2, 9),
+            x: prevBoss.x,
+            y: prevBoss.y + prevBoss.height / 2,
+            width: 30,
+            height: 20,
+            velocityX: -8 - newBoss.phase * 2,
+            velocityY: 0,
+            type: projectileType,
+          };
+          newBoss.projectiles = [...newBoss.projectiles, newProjectile];
+        } else {
+          newBoss.isAttacking = false;
+        }
+        
+        // Update projectiles
+        newBoss.projectiles = newBoss.projectiles
+          .map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY }))
+          .filter(p => p.x > -50);
+        
+        // Check projectile collision with player
+        for (const projectile of newBoss.projectiles) {
+          if (checkCollision(player, projectile)) {
+            if (hasShield) {
+              setGameState(gs => ({ ...gs, activePowerUps: gs.activePowerUps.filter(p => p.type !== 'shield') }));
+              setParticles(p => [...p, ...createParticles(player.x + PLAYER_WIDTH / 2, player.y + PLAYER_HEIGHT / 2, ['#00BFFF', '#87CEEB'], 10)]);
+              newBoss.projectiles = newBoss.projectiles.filter(p => p.id !== projectile.id);
+            } else {
+              endGame();
+              return newBoss;
+            }
+          }
+        }
+        
+        // Check if player jumped over boss (damage boss)
+        if (player.isJumping && player.y < prevBoss.y - 20 && 
+            player.x + player.width > prevBoss.x && player.x < prevBoss.x + prevBoss.width) {
+          newBoss.health -= 1;
+          setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y, ['#FF4444', '#FF8844', '#FFCC44'], 15)]);
+          
+          if (newBoss.health <= 0) {
+            // Boss defeated!
+            const bossConfig = BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
+            setBossRewards({ coins: bossConfig.rewardCoins, xp: bossConfig.rewardXP });
+            setGameState(gs => ({ ...gs, coins: gs.coins + bossConfig.rewardCoins }));
+            setDefeatedBosses(prev => [...prev, prevBoss.type]);
+            setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
+            return null;
+          }
+          
+          // Phase up at half health
+          if (newBoss.health <= prevBoss.maxHealth / 2 && prevBoss.phase === 1) {
+            newBoss.phase = 2;
+          }
+        }
+        
+        // Player collision with boss body (game over)
+        if (checkCollision(player, prevBoss) && player.y >= prevBoss.y) {
+          if (!hasShield) {
+            endGame();
+          }
+        }
+        
+        return newBoss;
+      });
     }
 
     // Update obstacles
@@ -390,7 +509,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY, life: p.life - 1 })).filter(p => p.life > 0));
 
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, player, hasMagnet, hasShield, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities]);
+  }, [gameState, player, hasMagnet, hasShield, boss, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities]);
 
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {
@@ -399,5 +518,5 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return () => { if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current); };
   }, [gameState.isPlaying, gameState.isPaused, gameLoop]);
 
-  return { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive, goHome };
+  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, defeatedBosses, jump, startGame, pauseGame, revive, goHome };
 }

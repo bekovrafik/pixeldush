@@ -44,6 +44,74 @@ export type Database = {
         }
         Relationships: []
       }
+      battle_pass_seasons: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          is_active: boolean | null
+          name: string
+          start_date: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_date?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_date?: string
+        }
+        Relationships: []
+      }
+      battle_pass_tiers: {
+        Row: {
+          free_reward_type: string
+          free_reward_value: string | null
+          id: string
+          premium_reward_type: string
+          premium_reward_value: string | null
+          season_id: string | null
+          tier_number: number
+          xp_required: number
+        }
+        Insert: {
+          free_reward_type: string
+          free_reward_value?: string | null
+          id?: string
+          premium_reward_type: string
+          premium_reward_value?: string | null
+          season_id?: string | null
+          tier_number: number
+          xp_required: number
+        }
+        Update: {
+          free_reward_type?: string
+          free_reward_value?: string | null
+          id?: string
+          premium_reward_type?: string
+          premium_reward_value?: string | null
+          season_id?: string | null
+          tier_number?: number
+          xp_required?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_pass_tiers_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "battle_pass_seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       character_skins: {
         Row: {
           coin_multiplier: number
@@ -338,6 +406,60 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_battle_pass: {
+        Row: {
+          claimed_free_tiers: number[] | null
+          claimed_premium_tiers: number[] | null
+          created_at: string
+          current_tier: number
+          current_xp: number
+          id: string
+          is_premium: boolean
+          profile_id: string
+          season_id: string
+          updated_at: string
+        }
+        Insert: {
+          claimed_free_tiers?: number[] | null
+          claimed_premium_tiers?: number[] | null
+          created_at?: string
+          current_tier?: number
+          current_xp?: number
+          id?: string
+          is_premium?: boolean
+          profile_id: string
+          season_id: string
+          updated_at?: string
+        }
+        Update: {
+          claimed_free_tiers?: number[] | null
+          claimed_premium_tiers?: number[] | null
+          created_at?: string
+          current_tier?: number
+          current_xp?: number
+          id?: string
+          is_premium?: boolean
+          profile_id?: string
+          season_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_battle_pass_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_battle_pass_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "battle_pass_seasons"
             referencedColumns: ["id"]
           },
         ]
