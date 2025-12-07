@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown, Home, Coins } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown, Home, Coins, Target, RotateCw } from 'lucide-react';
 import { GameState, WORLD_CONFIGS } from '@/types/game';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,12 +25,14 @@ interface GameUIProps {
   onOpenSettings: () => void;
   onOpenIAPShop: () => void;
   onOpenCoinStore: () => void;
+  onOpenDailyChallenges: () => void;
+  onOpenSpinWheel: () => void;
 }
 
 export function GameUI({
   gameState, highScore, isMuted, isLoggedIn,
   onStart, onPause, onRestart, onRevive, onGoHome, onToggleMute,
-  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore,
+  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore, onOpenDailyChallenges, onOpenSpinWheel,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
   const navigate = useNavigate();
@@ -50,9 +52,15 @@ export function GameUI({
           PLAY
         </Button>
 
-        <div className="grid grid-cols-5 gap-2 sm:gap-3 max-w-xs sm:max-w-none">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3 max-w-sm sm:max-w-none">
           <Button variant="outline" size="icon" onClick={onOpenDailyReward} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11" title="Daily Rewards">
             <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenDailyChallenges} className="border-orange-500/50 hover:bg-orange-500/20 w-10 h-10 sm:w-11 sm:h-11" title="Daily Challenges">
+            <Target className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenSpinWheel} className="border-purple-500/50 hover:bg-purple-500/20 w-10 h-10 sm:w-11 sm:h-11" title="Spin Wheel">
+            <RotateCw className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenAchievements} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Achievements">
             <Award className="w-4 h-4 sm:w-5 sm:h-5" />

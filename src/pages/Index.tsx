@@ -13,6 +13,8 @@ import { TutorialOverlay } from '@/components/game/TutorialOverlay';
 import { SettingsModal } from '@/components/game/SettingsModal';
 import { IAPShop } from '@/components/game/IAPShop';
 import { CoinStoreModal } from '@/components/game/CoinStoreModal';
+import { DailyChallengesModal } from '@/components/game/DailyChallengesModal';
+import { SpinWheelModal } from '@/components/game/SpinWheelModal';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,6 +23,7 @@ import { useSkins } from '@/hooks/useSkins';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useDailyRewards } from '@/hooks/useDailyRewards';
 import { useFriends } from '@/hooks/useFriends';
+import { useDailyChallenges } from '@/hooks/useDailyChallenges';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
@@ -40,6 +43,9 @@ export default function Index() {
   const [showSettings, setShowSettings] = useState(false);
   const [showIAPShop, setShowIAPShop] = useState(false);
   const [showCoinStore, setShowCoinStore] = useState(false);
+  const [showDailyChallenges, setShowDailyChallenges] = useState(false);
+  const [showSpinWheel, setShowSpinWheel] = useState(false);
+  const [powerupsCollectedThisRun, setPowerupsCollectedThisRun] = useState(0);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
   const [localHighScore, setLocalHighScore] = useState(0);
@@ -53,6 +59,7 @@ export default function Index() {
   const { achievements, unlockedIds, loading: achievementsLoading, checkAndUnlockAchievements } = useAchievements(profile?.id || null);
   const { currentStreak, canClaim, lastClaimDay, claimReward } = useDailyRewards(profile?.id || null);
   const { friends, pendingRequests, loading: friendsLoading, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, refreshFriends } = useFriends(profile?.id || null);
+  const { userProgress: challengeProgress, loading: challengesLoading, updateProgress: updateChallengeProgress, claimReward: claimChallengeReward, refetch: refetchChallenges } = useDailyChallenges(profile?.id || null);
 
   // Get skin abilities for game engine
   const selectedSkinData = getSelectedSkinData();
@@ -106,7 +113,16 @@ export default function Index() {
             toast.success(`🏆 Achievement Unlocked: ${achievement.name}!`, { duration: 4000 });
           });
         });
+
+        // Update daily challenges progress
+        updateChallengeProgress({
+          score: gameState.score,
+          distance: Math.floor(gameState.distance),
+          coins: gameState.coins,
+          powerupsCollected: powerupsCollectedThisRun,
+        });
         
+        setPowerupsCollectedThisRun(0);
         refreshProfile();
       }
     }
@@ -243,6 +259,8 @@ export default function Index() {
           onOpenSettings={() => setShowSettings(true)}
           onOpenIAPShop={() => setShowIAPShop(true)}
           onOpenCoinStore={() => setShowCoinStore(true)}
+          onOpenDailyChallenges={() => setShowDailyChallenges(true)}
+          onOpenSpinWheel={() => setShowSpinWheel(true)}
         />
       </div>
 
@@ -323,6 +341,25 @@ export default function Index() {
         currentCoins={profile?.coins || 0}
         onCoinsEarned={refreshProfile}
         onOpenAuth={() => { setShowCoinStore(false); setShowAuth(true); }}
+      />
+      <DailyChallengesModal
+        isOpen={showDailyChallenges}
+        onClose={() => setShowDailyChallenges(false)}
+        userProgress={challengeProgress}
+        loading={challengesLoading}
+        isLoggedIn={!!user}
+        onClaimReward={claimChallengeReward}
+        onOpenAuth={() => { setShowDailyChallenges(false); setShowAuth(true); }}
+        onPurchaseComplete={refreshProfile}
+      />
+      <SpinWheelModal
+        isOpen={showSpinWheel}
+        onClose={() => setShowSpinWheel(false)}
+        isLoggedIn={!!user}
+        profileId={profile?.id || null}
+        currentCoins={profile?.coins || 0}
+        onSpinComplete={refreshProfile}
+        onOpenAuth={() => { setShowSpinWheel(false); setShowAuth(true); }}
       />
     </div>
   );
