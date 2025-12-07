@@ -13,6 +13,7 @@ export function useLeaderboard() {
       .from('leaderboard_entries')
       .select(`
         id,
+        profile_id,
         score,
         distance,
         character_skin,
