@@ -20,7 +20,12 @@ interface SkinAbilities {
   shieldDurationBonus: number;
 }
 
-export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }) {
+interface GameEngineOptions {
+  isVip?: boolean;
+}
+
+export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }, options: GameEngineOptions = {}) {
+  const { isVip = false } = options;
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
     isPaused: false,
@@ -498,8 +503,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         }
         
         if (!coin.collected && checkCollision(player, { ...coin, x: newX, y: newY })) {
-          // Apply coin multiplier from skin
-          const coinValue = Math.round(1 * skinAbilities.coinMultiplier);
+          // Apply coin multiplier from skin, and VIP bonus (2x)
+          const vipMultiplier = isVip ? 2 : 1;
+          const coinValue = Math.round(1 * skinAbilities.coinMultiplier * vipMultiplier);
           coinsCollected += coinValue;
           audioManager.playCoin();
           newParticles.push(...createParticles(coin.x + coin.width / 2, coin.y + coin.height / 2, ['#FFD700', '#FFA500'], 8));
@@ -532,7 +538,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY, life: p.life - 1 })).filter(p => p.life > 0));
 
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, player, hasMagnet, hasShield, boss, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities]);
+  }, [gameState, player, hasMagnet, hasShield, boss, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities, isVip]);
 
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {
