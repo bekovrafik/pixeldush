@@ -9,6 +9,7 @@ interface GameCanvasProps {
   powerUps: PowerUp[];
   particles: Particle[];
   boss: Boss | null;
+  bossWarning: { name: string; countdown: number } | null;
   score: number;
   coinCount: number;
   speed: number;
@@ -32,7 +33,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   astronaut: { body: '#ECF0F1', accent: '#3498DB' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, onTap }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, onTap }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -404,6 +405,47 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     });
   }, []);
 
+  const drawBossWarning = useCallback((ctx: CanvasRenderingContext2D, warning: { name: string; countdown: number }) => {
+    ctx.save();
+    
+    // Flashing red overlay
+    const flashIntensity = Math.abs(Math.sin(Date.now() / 100)) * 0.3;
+    ctx.fillStyle = `rgba(255, 0, 0, ${flashIntensity})`;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Warning box
+    const boxWidth = 300;
+    const boxHeight = 80;
+    const boxX = (CANVAS_WIDTH - boxWidth) / 2;
+    const boxY = (CANVAS_HEIGHT - boxHeight) / 2 - 50;
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    
+    // Red border with pulse effect
+    ctx.strokeStyle = `rgba(255, 0, 0, ${0.5 + flashIntensity})`;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+    
+    // Warning text
+    ctx.fillStyle = '#FF4444';
+    ctx.font = '12px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠️ WARNING ⚠️', CANVAS_WIDTH / 2, boxY + 25);
+    
+    // Boss name
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '14px "Press Start 2P", monospace';
+    ctx.fillText(warning.name, CANVAS_WIDTH / 2, boxY + 50);
+    
+    // Countdown
+    ctx.fillStyle = '#FFD700';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.fillText(`INCOMING: ${Math.ceil(warning.countdown)}s`, CANVAS_WIDTH / 2, boxY + 70);
+    
+    ctx.restore();
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -425,7 +467,8 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     drawParticles(ctx, particles);
     drawPlayer(ctx, player);
     drawUI(ctx, score, coinCount, activePowerUps);
-  }, [player, obstacles, coins, powerUps, particles, boss, score, coinCount, speed, isPlaying, activePowerUps, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI]);
+    if (bossWarning) drawBossWarning(ctx, bossWarning);
+  }, [player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, activePowerUps, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI, drawBossWarning]);
 
   return (
     <canvas

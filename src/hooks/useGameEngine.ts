@@ -56,6 +56,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const [boss, setBoss] = useState<Boss | null>(null);
   const [defeatedBosses, setDefeatedBosses] = useState<string[]>([]);
   const [bossRewards, setBossRewards] = useState<{ coins: number; xp: number } | null>(null);
+  const [bossWarning, setBossWarning] = useState<{ name: string; countdown: number } | null>(null);
   
   const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
@@ -292,13 +293,26 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       };
     });
 
-    // Check for boss spawn
+    // Check for boss warning and spawn
     const currentDistance = gameState.distance;
     for (const bossConfig of BOSS_CONFIGS) {
+      const warningDistance = bossConfig.triggerDistance - 200;
+      
+      // Show warning before boss spawns
+      if (!bossSpawnedRef.current.has(bossConfig.type) && 
+          currentDistance >= warningDistance && 
+          currentDistance < bossConfig.triggerDistance &&
+          !bossWarning) {
+        const countdown = Math.ceil((bossConfig.triggerDistance - currentDistance) / gameState.speed / 60);
+        setBossWarning({ name: bossConfig.name, countdown: Math.max(1, countdown) });
+      }
+      
+      // Spawn boss
       if (!bossSpawnedRef.current.has(bossConfig.type) && 
           currentDistance >= bossConfig.triggerDistance && 
           currentDistance < bossConfig.triggerDistance + 100) {
         bossSpawnedRef.current.add(bossConfig.type);
+        setBossWarning(null);
         setBoss({
           id: bossConfig.type,
           x: 850,
@@ -314,6 +328,11 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           projectiles: [],
         });
       }
+    }
+    
+    // Update boss warning countdown
+    if (bossWarning && bossWarning.countdown > 0) {
+      setBossWarning(prev => prev ? { ...prev, countdown: Math.max(0, prev.countdown - 0.016) } : null);
     }
 
     // Generate obstacles (skip during boss fight)
@@ -518,5 +537,5 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return () => { if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current); };
   }, [gameState.isPlaying, gameState.isPaused, gameLoop]);
 
-  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, defeatedBosses, jump, startGame, pauseGame, revive, goHome };
+  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, defeatedBosses, jump, startGame, pauseGame, revive, goHome };
 }
