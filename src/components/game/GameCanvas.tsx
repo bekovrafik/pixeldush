@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Player, Obstacle, Particle, Coin, PowerUp, WorldTheme, WORLD_CONFIGS, ActivePowerUp, VIP_SKIN_EFFECTS } from '@/types/game';
+import { Player, Obstacle, Particle, Coin, PowerUp, WorldTheme, WORLD_CONFIGS, ActivePowerUp, VIP_SKIN_EFFECTS, PlayerProjectile, WeaponPowerUp, WEAPON_CONFIGS, WeaponType } from '@/types/game';
 import { Boss, BOSS_CONFIGS, BossArenaState, ARENA_BOSS_SEQUENCE } from '@/types/boss';
 
 interface GameCanvasProps {
@@ -7,6 +7,8 @@ interface GameCanvasProps {
   obstacles: Obstacle[];
   coins: Coin[];
   powerUps: PowerUp[];
+  weaponPowerUps: WeaponPowerUp[];
+  playerProjectiles: PlayerProjectile[];
   particles: Particle[];
   boss: Boss | null;
   bossWarning: { name: string; countdown: number } | null;
@@ -18,6 +20,9 @@ interface GameCanvasProps {
   selectedSkin: string;
   world: WorldTheme;
   activePowerUps: ActivePowerUp[];
+  activeWeapon: WeaponType | null;
+  weaponAmmo: number;
+  comboCount: number;
   isVip?: boolean;
   onTap: () => void;
 }
@@ -41,7 +46,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, isVip = false, onTap }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, isVip = false, onTap }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -373,6 +378,67 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', cx, cy);
+    ctx.restore();
+  }, []);
+
+  const drawWeaponPowerUp = useCallback((ctx: CanvasRenderingContext2D, wp: WeaponPowerUp) => {
+    const cx = wp.x + wp.width / 2, cy = wp.y + wp.height / 2;
+    const pulse = Math.sin(Date.now() / 150) * 4;
+    const config = WEAPON_CONFIGS[wp.type];
+    
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = config.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, wp.width / 2 + 10 + pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    
+    ctx.fillStyle = config.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, wp.width / 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.font = '18px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(config.emoji, cx, cy);
+    ctx.restore();
+  }, []);
+
+  const drawPlayerProjectile = useCallback((ctx: CanvasRenderingContext2D, proj: PlayerProjectile) => {
+    ctx.save();
+    const colors: Record<string, string> = {
+      energy: '#00FFFF',
+      fireball: '#FF4500',
+      laser: '#00FFFF',
+      bomb: '#FFD700',
+    };
+    
+    ctx.fillStyle = colors[proj.type] || '#FFFFFF';
+    if (proj.type === 'bomb') {
+      ctx.beginPath();
+      ctx.arc(proj.x + proj.width / 2, proj.y + proj.height / 2, proj.width / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(proj.x - 10, proj.y + 2, 10, proj.height - 4);
+    }
+    ctx.restore();
+  }, []);
+
+  const drawComboIndicator = useCallback((ctx: CanvasRenderingContext2D, combo: number, playerY: number) => {
+    if (combo <= 0) return;
+    
+    ctx.save();
+    const colors = ['#FFFFFF', '#FFFF00', '#FF8800', '#FF4400', '#FF00FF'];
+    const size = 12 + combo * 4;
+    
+    ctx.fillStyle = colors[Math.min(combo - 1, colors.length - 1)];
+    ctx.font = `bold ${size}px "Press Start 2P", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${combo}x COMBO!`, 400, Math.min(playerY - 30, 80));
     ctx.restore();
   }, []);
 
@@ -850,15 +916,18 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     obstacles.forEach(obs => drawObstacle(ctx, obs));
     coins.forEach(coin => drawCoin(ctx, coin));
     powerUps.forEach(pu => drawPowerUp(ctx, pu));
+    weaponPowerUps.forEach(wp => drawWeaponPowerUp(ctx, wp));
+    playerProjectiles.forEach(proj => drawPlayerProjectile(ctx, proj));
     if (boss) drawBoss(ctx, boss);
     drawParticles(ctx, particles);
     drawPlayer(ctx, player);
     drawUI(ctx, score, coinCount, activePowerUps, isVip);
+    drawComboIndicator(ctx, comboCount, player.y);
     if (bossArena?.isActive || (bossArena && (bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || bossArena.isEndlessMode))) {
       drawBossArenaUI(ctx, bossArena);
     }
     if (bossWarning) drawBossWarning(ctx, bossWarning);
-  }, [player, obstacles, coins, powerUps, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawUI, drawComboIndicator, drawBossWarning, drawBossArenaUI]);
 
   return (
     <canvas

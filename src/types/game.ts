@@ -11,6 +11,10 @@ export interface GameState {
   multiplier: number;
   world: WorldTheme;
   activePowerUps: ActivePowerUp[];
+  activeWeapon: WeaponType | null;
+  weaponAmmo: number;
+  comboCount: number;
+  comboTimer: number;
 }
 
 export interface ActivePowerUp {
@@ -19,6 +23,7 @@ export interface ActivePowerUp {
 }
 
 export type PowerUpType = 'shield' | 'magnet' | 'multiplier';
+export type WeaponType = 'fireball' | 'laser' | 'bomb';
 
 export type WorldTheme = 'city' | 'forest' | 'desert' | 'snow' | 'space' | 'neon' | 'crystal' | 'volcano';
 
@@ -45,6 +50,30 @@ export interface Player {
   frameIndex: number;
   frameTimer: number;
   hasShield: boolean;
+  doubleJumpAvailable: boolean;
+  hasDoubleJumped: boolean;
+}
+
+export interface PlayerProjectile {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  velocityX: number;
+  velocityY: number;
+  type: 'energy' | WeaponType;
+  damage: number;
+}
+
+export interface WeaponPowerUp {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: WeaponType;
+  collected: boolean;
 }
 
 export interface Obstacle {
@@ -325,3 +354,15 @@ export const VIP_SKIN_EFFECTS: Record<string, VipSkinEffect> = {
     particleCount: 4,
   },
 };
+
+// Weapon configurations
+export const WEAPON_CONFIGS: Record<WeaponType, { damage: number; speed: number; ammo: number; color: string; emoji: string }> = {
+  fireball: { damage: 2, speed: 10, ammo: 3, color: '#FF4500', emoji: '🔥' },
+  laser: { damage: 1, speed: 20, ammo: 5, color: '#00FFFF', emoji: '⚡' },
+  bomb: { damage: 3, speed: 8, ammo: 2, color: '#FFD700', emoji: '💣' },
+};
+
+// Combo system constants
+export const COMBO_TIMEOUT = 120; // 2 seconds at 60fps
+export const MAX_COMBO = 5;
+export const COMBO_DAMAGE_MULTIPLIERS = [1, 2, 3, 4, 5]; // x1, x2, x3, x4, x5

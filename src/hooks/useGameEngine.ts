@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { GameState, Player, Obstacle, Particle, Coin, PowerUp, PowerUpType, WorldTheme, WORLD_CONFIGS } from '@/types/game';
+import { GameState, Player, Obstacle, Particle, Coin, PowerUp, PowerUpType, WorldTheme, PlayerProjectile, WeaponPowerUp, WeaponType, WEAPON_CONFIGS, COMBO_TIMEOUT, MAX_COMBO, COMBO_DAMAGE_MULTIPLIERS } from '@/types/game';
 import { Boss, BossProjectile, BOSS_CONFIGS, BossArenaState, ARENA_TRIGGER_DISTANCE, ARENA_BREAK_DURATION, ARENA_BOSS_SEQUENCE, getArenaBossConfig } from '@/types/boss';
 import { audioManager } from '@/lib/audioManager';
 
 const GRAVITY = 0.8;
 const JUMP_FORCE = -15;
+const DOUBLE_JUMP_FORCE = -12;
 const GROUND_Y = 280;
 const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 40;
@@ -39,6 +40,10 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     multiplier: 1,
     world: currentWorld,
     activePowerUps: [],
+    activeWeapon: null,
+    weaponAmmo: 0,
+    comboCount: 0,
+    comboTimer: 0,
   });
 
   const [player, setPlayer] = useState<Player>({
@@ -52,12 +57,16 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     frameIndex: 0,
     frameTimer: 0,
     hasShield: false,
+    doubleJumpAvailable: true,
+    hasDoubleJumped: false,
   });
 
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [coins, setCoins] = useState<Coin[]>([]);
   const [powerUps, setPowerUps] = useState<PowerUp[]>([]);
+  const [weaponPowerUps, setWeaponPowerUps] = useState<WeaponPowerUp[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [playerProjectiles, setPlayerProjectiles] = useState<PlayerProjectile[]>([]);
   const [boss, setBoss] = useState<Boss | null>(null);
   const [defeatedBosses, setDefeatedBosses] = useState<string[]>([]);
   const [bossRewards, setBossRewards] = useState<{ coins: number; xp: number } | null>(null);
@@ -71,8 +80,10 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const obstacleTimerRef = useRef<number>(0);
   const coinTimerRef = useRef<number>(0);
   const powerUpTimerRef = useRef<number>(0);
+  const weaponTimerRef = useRef<number>(0);
   const bossSpawnedRef = useRef<Set<string>>(new Set());
   const arenaTriggeredRef = useRef<boolean>(false);
+  const lastBossHitRef = useRef<number>(0);
   
   const toggleRushMode = useCallback(() => {
     if (!endlessModeEnabled) {
@@ -131,6 +142,13 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return { id: Math.random().toString(36).substr(2, 9), x: 900, y, width: 28, height: 28, type, collected: false };
   }, []);
 
+  const generateWeaponPowerUp = useCallback((): WeaponPowerUp => {
+    const types: WeaponType[] = ['fireball', 'laser', 'bomb'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const y = GROUND_Y - 60 - Math.random() * 60;
+    return { id: Math.random().toString(36).substr(2, 9), x: 900, y, width: 32, height: 32, type, collected: false };
+  }, []);
+
   const createParticles = useCallback((x: number, y: number, colors: string[], count: number) => {
     const newParticles: Particle[] = [];
     for (let i = 0; i < count; i++) {
@@ -147,26 +165,81 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return newParticles;
   }, []);
 
-  const checkCollision = useCallback((p: Player, obj: { x: number; y: number; width: number; height: number }): boolean => {
+  const checkCollision = useCallback((p: Player | { x: number; y: number; width: number; height: number }, obj: { x: number; y: number; width: number; height: number }): boolean => {
     const padding = 5;
-    return p.x + padding < obj.x + obj.width && p.x + p.width - padding > obj.x && p.y + padding < obj.y + obj.height && p.y + p.height - padding > obj.y;
+    return p.x + padding < obj.x + obj.width && p.x + ('width' in p ? p.width : 32) - padding > obj.x && p.y + padding < obj.y + obj.height && p.y + ('height' in p ? p.height : 40) - padding > obj.y;
   }, []);
 
   const jump = useCallback(() => {
     if (!gameState.isPlaying || gameState.isPaused || gameState.isGameOver) return;
     
-    // Apply jump power bonus from skin
     const jumpForceWithBonus = JUMP_FORCE * (1 + skinAbilities.jumpPowerBonus / 100);
+    const doubleJumpForceWithBonus = DOUBLE_JUMP_FORCE * (1 + skinAbilities.jumpPowerBonus / 100);
     
     setPlayer(prev => {
+      // First jump from ground
       if (prev.isOnGround) {
         audioManager.playJump();
         setParticles(current => [...current, ...createParticles(prev.x + PLAYER_WIDTH / 2, prev.y + PLAYER_HEIGHT, ['#8B7355'], 5)]);
-        return { ...prev, velocityY: jumpForceWithBonus, isJumping: true, isOnGround: false };
+        return { ...prev, velocityY: jumpForceWithBonus, isJumping: true, isOnGround: false, hasDoubleJumped: false, doubleJumpAvailable: true };
+      }
+      // Double jump in air
+      else if (prev.doubleJumpAvailable && !prev.hasDoubleJumped) {
+        audioManager.playJump();
+        setParticles(current => [...current, ...createParticles(prev.x + PLAYER_WIDTH / 2, prev.y + PLAYER_HEIGHT, ['#00FFFF', '#FF00FF'], 8)]);
+        return { ...prev, velocityY: doubleJumpForceWithBonus, hasDoubleJumped: true, doubleJumpAvailable: false };
       }
       return prev;
     });
   }, [gameState.isPlaying, gameState.isPaused, gameState.isGameOver, createParticles, skinAbilities.jumpPowerBonus]);
+
+  const attack = useCallback(() => {
+    if (!gameState.isPlaying || gameState.isPaused || gameState.isGameOver) return;
+    if (!boss && !bossArena?.isActive) return; // Only attack during boss fights
+    
+    setPlayer(currentPlayer => {
+      // Check if we have a weapon
+      if (gameState.activeWeapon && gameState.weaponAmmo > 0) {
+        const weapon = WEAPON_CONFIGS[gameState.activeWeapon];
+        const projectile: PlayerProjectile = {
+          id: Math.random().toString(36).substr(2, 9),
+          x: currentPlayer.x + currentPlayer.width,
+          y: currentPlayer.y + currentPlayer.height / 2 - 8,
+          width: gameState.activeWeapon === 'bomb' ? 24 : 16,
+          height: gameState.activeWeapon === 'bomb' ? 24 : 12,
+          velocityX: weapon.speed,
+          velocityY: 0,
+          type: gameState.activeWeapon,
+          damage: weapon.damage,
+        };
+        
+        setPlayerProjectiles(prev => [...prev, projectile]);
+        setGameState(gs => ({
+          ...gs,
+          weaponAmmo: gs.weaponAmmo - 1,
+          activeWeapon: gs.weaponAmmo - 1 <= 0 ? null : gs.activeWeapon,
+        }));
+        audioManager.playCoin(); // Use coin sound for now
+      } else {
+        // Default energy shot (always available during boss fights)
+        const projectile: PlayerProjectile = {
+          id: Math.random().toString(36).substr(2, 9),
+          x: currentPlayer.x + currentPlayer.width,
+          y: currentPlayer.y + currentPlayer.height / 2 - 6,
+          width: 12,
+          height: 8,
+          velocityX: 12,
+          velocityY: 0,
+          type: 'energy',
+          damage: 1,
+        };
+        setPlayerProjectiles(prev => [...prev, projectile]);
+        audioManager.playCoin();
+      }
+      
+      return currentPlayer;
+    });
+  }, [gameState.isPlaying, gameState.isPaused, gameState.isGameOver, gameState.activeWeapon, gameState.weaponAmmo, boss, bossArena]);
 
   const startGame = useCallback(() => {
     audioManager.resumeContext();
@@ -177,16 +250,21 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       score: 0, distance: 0, speed: INITIAL_SPEED, coins: 0,
       canRevive: true, hasRevived: false, multiplier: 1,
       world: currentWorld, activePowerUps: [],
+      activeWeapon: null, weaponAmmo: 0,
+      comboCount: 0, comboTimer: 0,
     });
     setPlayer({
       x: 80, y: GROUND_Y - PLAYER_HEIGHT, width: PLAYER_WIDTH, height: PLAYER_HEIGHT,
       velocityY: 0, isJumping: false, isOnGround: true,
       frameIndex: 0, frameTimer: 0, hasShield: false,
+      doubleJumpAvailable: true, hasDoubleJumped: false,
     });
     setObstacles([]);
     setCoins([]);
     setPowerUps([]);
+    setWeaponPowerUps([]);
     setParticles([]);
+    setPlayerProjectiles([]);
     setBoss(null);
     setBossRewards(null);
     setBossArena(null);
@@ -195,9 +273,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     obstacleTimerRef.current = 0;
     coinTimerRef.current = 0;
     powerUpTimerRef.current = 0;
-    obstacleTimerRef.current = 0;
-    coinTimerRef.current = 0;
-    powerUpTimerRef.current = 0;
+    weaponTimerRef.current = 0;
+    lastBossHitRef.current = 0;
   }, [currentWorld]);
 
   const pauseGame = useCallback(() => {
@@ -211,16 +288,21 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       score: 0, distance: 0, speed: INITIAL_SPEED, coins: 0,
       canRevive: true, hasRevived: false, multiplier: 1,
       world: currentWorld, activePowerUps: [],
+      activeWeapon: null, weaponAmmo: 0,
+      comboCount: 0, comboTimer: 0,
     });
     setPlayer({
       x: 80, y: GROUND_Y - PLAYER_HEIGHT, width: PLAYER_WIDTH, height: PLAYER_HEIGHT,
       velocityY: 0, isJumping: false, isOnGround: true,
       frameIndex: 0, frameTimer: 0, hasShield: false,
+      doubleJumpAvailable: true, hasDoubleJumped: false,
     });
     setObstacles([]);
     setCoins([]);
     setPowerUps([]);
+    setWeaponPowerUps([]);
     setParticles([]);
+    setPlayerProjectiles([]);
     setBoss(null);
     setBossRewards(null);
     setBossArena(null);
@@ -238,9 +320,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     if (!gameState.canRevive || gameState.hasRevived) return;
     audioManager.startBGM();
     setGameState(prev => ({ ...prev, isPlaying: true, isGameOver: false, hasRevived: true, canRevive: false }));
-    setPlayer(prev => ({ ...prev, y: GROUND_Y - PLAYER_HEIGHT, velocityY: 0, isJumping: false, isOnGround: true }));
+    setPlayer(prev => ({ ...prev, y: GROUND_Y - PLAYER_HEIGHT, velocityY: 0, isJumping: false, isOnGround: true, hasDoubleJumped: false, doubleJumpAvailable: true }));
     setObstacles([]);
-    // Mark that player died during arena (for streak bonus tracking)
+    setPlayerProjectiles([]);
     if (bossArena?.isActive) {
       setBossArena(prev => prev ? { ...prev, hasDied: true } : null);
     }
@@ -248,7 +330,6 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
 
   const activatePowerUp = useCallback((type: PowerUpType) => {
     audioManager.playCoin();
-    // Apply shield duration bonus from skin
     const duration = type === 'shield' 
       ? POWERUP_DURATION * (1 + skinAbilities.shieldDurationBonus / 100)
       : POWERUP_DURATION;
@@ -265,6 +346,16 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     });
   }, [skinAbilities.shieldDurationBonus]);
 
+  const activateWeapon = useCallback((type: WeaponType) => {
+    audioManager.playCoin();
+    const config = WEAPON_CONFIGS[type];
+    setGameState(prev => ({
+      ...prev,
+      activeWeapon: type,
+      weaponAmmo: config.ammo,
+    }));
+  }, []);
+
   const gameLoop = useCallback((timestamp: number) => {
     if (!lastTimeRef.current) lastTimeRef.current = timestamp;
     lastTimeRef.current = timestamp;
@@ -279,40 +370,51 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       let newY = prev.y + prev.velocityY;
       let newVelocityY = prev.velocityY + GRAVITY;
       let isOnGround = false;
+      let doubleJumpAvailable = prev.doubleJumpAvailable;
+      let hasDoubleJumped = prev.hasDoubleJumped;
 
       if (newY >= GROUND_Y - PLAYER_HEIGHT) {
         newY = GROUND_Y - PLAYER_HEIGHT;
         newVelocityY = 0;
         isOnGround = true;
+        doubleJumpAvailable = true;
+        hasDoubleJumped = false;
       }
 
       let newFrameTimer = prev.frameTimer + 1;
       let newFrameIndex = prev.frameIndex;
       if (newFrameTimer >= 6) { newFrameTimer = 0; newFrameIndex = (prev.frameIndex + 1) % 4; }
 
-      return { ...prev, y: newY, velocityY: newVelocityY, isOnGround, isJumping: !isOnGround, frameIndex: newFrameIndex, frameTimer: newFrameTimer, hasShield: hasShield };
+      return { ...prev, y: newY, velocityY: newVelocityY, isOnGround, isJumping: !isOnGround, frameIndex: newFrameIndex, frameTimer: newFrameTimer, hasShield: hasShield, doubleJumpAvailable, hasDoubleJumped };
     });
 
-    // Update game state
+    // Update game state (including combo timer)
     setGameState(prev => {
-      // Apply speed bonus from skin
       const speedWithBonus = SPEED_INCREMENT * (1 + skinAbilities.speedBonus / 100);
       const newSpeed = Math.min(prev.speed + speedWithBonus, MAX_SPEED * (1 + skinAbilities.speedBonus / 200));
       const baseScore = Math.floor((prev.distance + newSpeed) / 10);
       const multiplier = prev.activePowerUps.some(p => p.type === 'multiplier') ? 2 : 1;
       
-      // Update power-up timers
       const updatedPowerUps = prev.activePowerUps
         .map(p => ({ ...p, remainingTime: p.remainingTime - 1 }))
         .filter(p => p.remainingTime > 0);
       
-      // Check for world changes based on distance
       let newWorld = prev.world;
       const totalDist = prev.distance + newSpeed;
       if (totalDist >= 50000) newWorld = 'space';
       else if (totalDist >= 30000) newWorld = 'snow';
       else if (totalDist >= 15000) newWorld = 'desert';
       else if (totalDist >= 5000) newWorld = 'forest';
+      
+      // Update combo timer
+      let comboCount = prev.comboCount;
+      let comboTimer = prev.comboTimer;
+      if (comboTimer > 0) {
+        comboTimer -= 1;
+        if (comboTimer <= 0) {
+          comboCount = 0;
+        }
+      }
       
       return {
         ...prev,
@@ -322,13 +424,14 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         multiplier,
         world: newWorld,
         activePowerUps: updatedPowerUps,
+        comboCount,
+        comboTimer,
       };
     });
 
     // Check for boss arena trigger
     const currentDistance = gameState.distance;
     
-    // Start Boss Arena Mode when reaching trigger distance
     if (!arenaTriggeredRef.current && currentDistance >= ARENA_TRIGGER_DISTANCE && !bossArena && !boss) {
       arenaTriggeredRef.current = true;
       setBossArena({
@@ -349,11 +452,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     
     // Handle Boss Arena Mode
     if (bossArena?.isActive) {
-      // During break timer between bosses (skip in rush mode and endless mode)
       if (bossArena.breakTimer > 0 && !bossArena.isRushMode && !bossArena.isEndlessMode) {
         setBossArena(prev => prev ? { ...prev, breakTimer: prev.breakTimer - 1 } : null);
         
-        // Spawn next boss when break ends and give VIP shield
         if (bossArena.breakTimer === 1 && bossArena.currentBossIndex < ARENA_BOSS_SEQUENCE.length) {
           const nextBossType = ARENA_BOSS_SEQUENCE[bossArena.currentBossIndex];
           const bossConfig = getArenaBossConfig(nextBossType, bossArena.currentBossIndex, bossArena.isRushMode, bossArena.endlessWave);
@@ -371,13 +472,11 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             isAttacking: false,
             projectiles: [],
           });
-          // VIP users get free shield at start of each boss fight (not in rush/endless mode)
           if (isVip && !bossArena.isRushMode && !bossArena.isEndlessMode) {
             activatePowerUp('shield');
           }
         }
       }
-      // Spawn first boss if not spawned yet
       else if (!boss && bossArena.currentBossIndex === 0 && bossArena.bossesDefeated.length === 0) {
         const firstBossType = ARENA_BOSS_SEQUENCE[0];
         const bossConfig = getArenaBossConfig(firstBossType, 0, bossArena.isRushMode, bossArena.endlessWave);
@@ -395,12 +494,10 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           isAttacking: false,
           projectiles: [],
         });
-        // VIP users get free shield at start of first boss fight (not in rush/endless mode)
         if (isVip && !bossArena.isRushMode && !bossArena.isEndlessMode) {
           activatePowerUp('shield');
         }
       }
-      // In rush or endless mode, immediately spawn next boss after defeat (no break)
       else if (!boss && (bossArena.isRushMode || bossArena.isEndlessMode) && bossArena.bossesDefeated.length > 0) {
         const nextBossType = ARENA_BOSS_SEQUENCE[bossArena.currentBossIndex % ARENA_BOSS_SEQUENCE.length];
         const bossConfig = getArenaBossConfig(nextBossType, bossArena.currentBossIndex, bossArena.isRushMode, bossArena.endlessWave);
@@ -421,12 +518,11 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       }
     }
     
-    // Legacy boss spawn (for non-arena mode, if arena was skipped somehow)
+    // Legacy boss spawn
     if (!bossArena) {
       for (const bossConfig of BOSS_CONFIGS) {
         const warningDistance = bossConfig.triggerDistance - 200;
         
-        // Show warning before boss spawns
         if (!bossSpawnedRef.current.has(bossConfig.type) && 
             currentDistance >= warningDistance && 
             currentDistance < bossConfig.triggerDistance &&
@@ -436,7 +532,6 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           audioManager.playBossWarning();
         }
         
-        // Spawn boss
         if (!bossSpawnedRef.current.has(bossConfig.type) && 
             currentDistance >= bossConfig.triggerDistance && 
             currentDistance < bossConfig.triggerDistance + 100) {
@@ -460,7 +555,6 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       }
     }
     
-    // Update boss warning countdown
     if (bossWarning && bossWarning.countdown > 0) {
       setBossWarning(prev => prev ? { ...prev, countdown: Math.max(0, prev.countdown - 0.016) } : null);
     }
@@ -480,7 +574,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       }
     }
 
-    // Generate coins (reduced during arena)
+    // Generate coins
     coinTimerRef.current += 1;
     const coinInterval = bossArena?.isActive ? 80 : 50;
     if (coinTimerRef.current >= coinInterval + Math.random() * 30) {
@@ -488,13 +582,97 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       setCoins(prev => [...prev, generateCoin()]);
     }
 
-    // Generate power-ups (rare, even more rare during arena)
+    // Generate power-ups
     powerUpTimerRef.current += 1;
     const powerUpInterval = bossArena?.isActive ? 600 : 400;
     if (powerUpTimerRef.current >= powerUpInterval + Math.random() * 200) {
       powerUpTimerRef.current = 0;
       setPowerUps(prev => [...prev, generatePowerUp()]);
     }
+
+    // Generate weapon power-ups (only during boss fights)
+    if (boss || bossArena?.isActive) {
+      weaponTimerRef.current += 1;
+      if (weaponTimerRef.current >= 300 + Math.random() * 200) {
+        weaponTimerRef.current = 0;
+        setWeaponPowerUps(prev => [...prev, generateWeaponPowerUp()]);
+      }
+    }
+
+    // Update player projectiles and check boss collision
+    setPlayerProjectiles(prev => {
+      let updated = prev.map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY }))
+        .filter(p => p.x < 900);
+      
+      // Check collision with boss
+      if (boss) {
+        for (const proj of updated) {
+          if (proj.x < boss.x + boss.width && proj.x + proj.width > boss.x &&
+              proj.y < boss.y + boss.height && proj.y + proj.height > boss.y) {
+            // Hit boss!
+            setBoss(prevBoss => {
+              if (!prevBoss) return null;
+              
+              // Apply combo multiplier
+              const comboDamage = proj.damage * COMBO_DAMAGE_MULTIPLIERS[Math.min(gameState.comboCount, MAX_COMBO - 1)];
+              const newHealth = prevBoss.health - comboDamage;
+              
+              // Update combo
+              setGameState(gs => ({
+                ...gs,
+                comboCount: Math.min(gs.comboCount + 1, MAX_COMBO),
+                comboTimer: COMBO_TIMEOUT,
+              }));
+              
+              setParticles(p => [...p, ...createParticles(proj.x, proj.y, ['#FF4444', '#FF8844', '#FFCC44'], 10)]);
+              audioManager.playBossHit();
+              
+              if (newHealth <= 0) {
+                // Boss defeated
+                const bossConfig = bossArena 
+                  ? getArenaBossConfig(prevBoss.type, bossArena.currentBossIndex, bossArena.isRushMode, bossArena.endlessWave)
+                  : BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
+                setBossRewards({ coins: bossConfig.rewardCoins, xp: bossConfig.rewardXP });
+                setGameState(gs => ({ ...gs, coins: gs.coins + bossConfig.rewardCoins, comboCount: 0, comboTimer: 0 }));
+                setDefeatedBosses(prev => [...prev, prevBoss.type]);
+                setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
+                audioManager.playBossDefeated();
+                
+                handleBossDefeat(prevBoss);
+                return null;
+              }
+              
+              if (newHealth <= prevBoss.maxHealth / 2 && prevBoss.phase === 1) {
+                return { ...prevBoss, health: newHealth, phase: 2 };
+              }
+              
+              return { ...prevBoss, health: newHealth };
+            });
+            
+            // Remove projectile on hit
+            updated = updated.filter(p => p.id !== proj.id);
+          }
+        }
+        
+        // Also check collision with boss projectiles (destroy them with bomb)
+        if (boss) {
+          for (const proj of updated) {
+            if (proj.type === 'bomb') {
+              setBoss(prevBoss => {
+                if (!prevBoss) return null;
+                const newProjectiles = prevBoss.projectiles.filter(bp => {
+                  const dist = Math.sqrt(Math.pow(bp.x - proj.x, 2) + Math.pow(bp.y - proj.y, 2));
+                  return dist > 60; // Bomb blast radius
+                });
+                return { ...prevBoss, projectiles: newProjectiles };
+              });
+            }
+          }
+        }
+      }
+      
+      return updated;
+    });
 
     // Update boss
     if (boss) {
@@ -503,14 +681,12 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         
         let newBoss = { ...prevBoss };
         
-        // Boss attack timer
         newBoss.attackTimer -= 1;
         if (newBoss.attackTimer <= 0) {
           const bossConfig = BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
           newBoss.attackTimer = bossConfig.attackInterval / newBoss.phase;
           newBoss.isAttacking = true;
           
-          // Create projectile
           const projectileType = prevBoss.type === 'mech' ? 'laser' : prevBoss.type === 'dragon' ? 'fireball' : 'missile';
           const newProjectile: BossProjectile = {
             id: Math.random().toString(36).substr(2, 9),
@@ -528,7 +704,6 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           newBoss.isAttacking = false;
         }
         
-        // Update projectiles
         newBoss.projectiles = newBoss.projectiles
           .map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY }))
           .filter(p => p.x > -50);
@@ -547,88 +722,47 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           }
         }
         
-        // Check if player jumped over boss (damage boss)
+        // Check if player jumped over boss (damage boss with combo)
+        const now = Date.now();
         if (player.isJumping && player.y < prevBoss.y - 20 && 
-            player.x + player.width > prevBoss.x && player.x < prevBoss.x + prevBoss.width) {
-          newBoss.health -= 1;
+            player.x + player.width > prevBoss.x && player.x < prevBoss.x + prevBoss.width &&
+            now - lastBossHitRef.current > 300) { // Prevent multiple hits per jump
+          lastBossHitRef.current = now;
+          
+          // Apply combo damage
+          const comboDamage = COMBO_DAMAGE_MULTIPLIERS[Math.min(gameState.comboCount, MAX_COMBO - 1)];
+          newBoss.health -= comboDamage;
+          
+          // Update combo
+          setGameState(gs => ({
+            ...gs,
+            comboCount: Math.min(gs.comboCount + 1, MAX_COMBO),
+            comboTimer: COMBO_TIMEOUT,
+          }));
+          
           setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y, ['#FF4444', '#FF8844', '#FFCC44'], 15)]);
           audioManager.playBossHit();
           
           if (newBoss.health <= 0) {
-            // Boss defeated!
             const bossConfig = bossArena 
               ? getArenaBossConfig(prevBoss.type, bossArena.currentBossIndex, bossArena.isRushMode, bossArena.endlessWave)
               : BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
             setBossRewards({ coins: bossConfig.rewardCoins, xp: bossConfig.rewardXP });
-            setGameState(gs => ({ ...gs, coins: gs.coins + bossConfig.rewardCoins }));
+            setGameState(gs => ({ ...gs, coins: gs.coins + bossConfig.rewardCoins, comboCount: 0, comboTimer: 0 }));
             setDefeatedBosses(prev => [...prev, prevBoss.type]);
             setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
             audioManager.playBossDefeated();
             
-            // Handle arena mode progression
-            if (bossArena?.isActive) {
-              const newBossesDefeated = [...bossArena.bossesDefeated, prevBoss.type];
-              const baseNewRewards = {
-                coins: bossArena.totalRewards.coins + bossConfig.rewardCoins,
-                xp: bossArena.totalRewards.xp + bossConfig.rewardXP,
-              };
-              
-              // Endless mode: spawn next boss immediately, cycle through boss types
-              if (bossArena.isEndlessMode) {
-                const newWave = bossArena.endlessWave + 1;
-                const nextBossIndex = newWave % ARENA_BOSS_SEQUENCE.length;
-                setBossArena({
-                  ...bossArena,
-                  currentBossIndex: nextBossIndex,
-                  bossesDefeated: newBossesDefeated,
-                  totalRewards: baseNewRewards,
-                  breakTimer: 0,
-                  endlessWave: newWave,
-                });
-              } else if (newBossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
-                // Arena complete! Apply streak bonus if no deaths, rush mode bonus
-                const streakMultiplier = bossArena.hasDied ? 1 : 2;
-                const rushBonus = bossArena.isRushMode ? 1.5 : 1;
-                const finalRewards = {
-                  coins: Math.floor(baseNewRewards.coins * streakMultiplier * rushBonus),
-                  xp: Math.floor(baseNewRewards.xp * streakMultiplier * rushBonus),
-                };
-                
-                // Add streak/rush bonus coins to game state
-                const bonusCoins = finalRewards.coins - baseNewRewards.coins;
-                if (bonusCoins > 0) {
-                  setGameState(gs => ({ ...gs, coins: gs.coins + bonusCoins }));
-                }
-                
-                setBossArena({
-                  ...bossArena,
-                  isActive: false,
-                  bossesDefeated: newBossesDefeated,
-                  totalRewards: finalRewards,
-                  breakTimer: 0,
-                });
-              } else {
-                // In rush mode, skip break timer (set to 0), otherwise set normal break
-                setBossArena({
-                  ...bossArena,
-                  currentBossIndex: bossArena.currentBossIndex + 1,
-                  bossesDefeated: newBossesDefeated,
-                  totalRewards: baseNewRewards,
-                  breakTimer: bossArena.isRushMode ? 0 : ARENA_BREAK_DURATION,
-                });
-              }
-            }
-            
+            handleBossDefeat(prevBoss);
             return null;
           }
           
-          // Phase up at half health
           if (newBoss.health <= prevBoss.maxHealth / 2 && prevBoss.phase === 1) {
             newBoss.phase = 2;
           }
         }
         
-        // Player collision with boss body (game over)
+        // Player collision with boss body
         if (checkCollision(player, prevBoss) && player.y >= prevBoss.y) {
           if (!hasShield) {
             endGame();
@@ -637,6 +771,59 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         
         return newBoss;
       });
+    }
+
+    // Helper function for boss defeat handling
+    function handleBossDefeat(defeatedBoss: Boss) {
+      if (bossArena?.isActive) {
+        const bossConfig = getArenaBossConfig(defeatedBoss.type, bossArena.currentBossIndex, bossArena.isRushMode, bossArena.endlessWave);
+        const newBossesDefeated = [...bossArena.bossesDefeated, defeatedBoss.type];
+        const baseNewRewards = {
+          coins: bossArena.totalRewards.coins + bossConfig.rewardCoins,
+          xp: bossArena.totalRewards.xp + bossConfig.rewardXP,
+        };
+        
+        if (bossArena.isEndlessMode) {
+          const newWave = bossArena.endlessWave + 1;
+          const nextBossIndex = newWave % ARENA_BOSS_SEQUENCE.length;
+          setBossArena({
+            ...bossArena,
+            currentBossIndex: nextBossIndex,
+            bossesDefeated: newBossesDefeated,
+            totalRewards: baseNewRewards,
+            breakTimer: 0,
+            endlessWave: newWave,
+          });
+        } else if (newBossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
+          const streakMultiplier = bossArena.hasDied ? 1 : 2;
+          const rushBonus = bossArena.isRushMode ? 1.5 : 1;
+          const finalRewards = {
+            coins: Math.floor(baseNewRewards.coins * streakMultiplier * rushBonus),
+            xp: Math.floor(baseNewRewards.xp * streakMultiplier * rushBonus),
+          };
+          
+          const bonusCoins = finalRewards.coins - baseNewRewards.coins;
+          if (bonusCoins > 0) {
+            setGameState(gs => ({ ...gs, coins: gs.coins + bonusCoins }));
+          }
+          
+          setBossArena({
+            ...bossArena,
+            isActive: false,
+            bossesDefeated: newBossesDefeated,
+            totalRewards: finalRewards,
+            breakTimer: 0,
+          });
+        } else {
+          setBossArena({
+            ...bossArena,
+            currentBossIndex: bossArena.currentBossIndex + 1,
+            bossesDefeated: newBossesDefeated,
+            totalRewards: baseNewRewards,
+            breakTimer: bossArena.isRushMode ? 0 : ARENA_BREAK_DURATION,
+          });
+        }
+      }
     }
 
     // Update obstacles
@@ -665,7 +852,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       return updated;
     });
 
-    // Update coins with magnet effect and coin multiplier from skin
+    // Update coins
     setCoins(prev => {
       let coinsCollected = 0;
       const newParticles: Particle[] = [];
@@ -674,7 +861,6 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         let newX = coin.x - gameState.speed;
         let newY = coin.y;
         
-        // Magnet effect
         if (hasMagnet && !coin.collected) {
           const dx = player.x + PLAYER_WIDTH / 2 - (coin.x + coin.width / 2);
           const dy = player.y + PLAYER_HEIGHT / 2 - (coin.y + coin.height / 2);
@@ -686,7 +872,6 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         }
         
         if (!coin.collected && checkCollision(player, { ...coin, x: newX, y: newY })) {
-          // Apply coin multiplier from skin, and VIP bonus (2x)
           const vipMultiplier = isVip ? 2 : 1;
           const coinValue = Math.round(1 * skinAbilities.coinMultiplier * vipMultiplier);
           coinsCollected += coinValue;
@@ -717,11 +902,24 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       return updated;
     });
 
+    // Update weapon power-ups
+    setWeaponPowerUps(prev => {
+      const updated = prev.map(wp => {
+        if (!wp.collected && checkCollision(player, wp)) {
+          activateWeapon(wp.type);
+          setParticles(p => [...p, ...createParticles(wp.x + wp.width / 2, wp.y + wp.height / 2, [WEAPON_CONFIGS[wp.type].color, '#FFFFFF'], 15)]);
+          return { ...wp, collected: true };
+        }
+        return { ...wp, x: wp.x - gameState.speed };
+      }).filter(wp => wp.x > -50 && !wp.collected);
+      return updated;
+    });
+
     // Update particles
     setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY, life: p.life - 1 })).filter(p => p.life > 0));
 
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, player, hasMagnet, hasShield, boss, bossArena, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities, isVip]);
+  }, [gameState, player, hasMagnet, hasShield, boss, bossArena, bossWarning, generateObstacle, generateCoin, generatePowerUp, generateWeaponPowerUp, checkCollision, createParticles, activatePowerUp, activateWeapon, endGame, skinAbilities, isVip, rushModeEnabled, endlessModeEnabled]);
 
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {
@@ -730,5 +928,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return () => { if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current); };
   }, [gameState.isPlaying, gameState.isPaused, gameLoop]);
 
-  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, jump, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode };
+  return { 
+    gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, 
+    boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, 
+    jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode 
+  };
 }

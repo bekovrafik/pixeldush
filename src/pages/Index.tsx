@@ -114,7 +114,7 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, jump, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
+  const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -241,11 +241,15 @@ export default function Index() {
         if (!gameState.isPlaying && !gameState.isGameOver) startGame();
         else jump();
       }
+      if ((e.code === 'KeyX' || e.code === 'KeyZ') && gameState.isPlaying) {
+        e.preventDefault();
+        attack();
+      }
       if (e.code === 'Escape' && gameState.isPlaying) pauseGame();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState.isPlaying, gameState.isGameOver, jump, startGame, pauseGame]);
+  }, [gameState.isPlaying, gameState.isGameOver, jump, attack, startGame, pauseGame]);
 
   const handleTap = useCallback(() => {
     audioManager.resumeContext();
@@ -339,6 +343,8 @@ export default function Index() {
           obstacles={obstacles}
           coins={coins}
           powerUps={powerUps}
+          weaponPowerUps={weaponPowerUps}
+          playerProjectiles={playerProjectiles}
           particles={particles}
           boss={boss}
           bossWarning={bossWarning}
@@ -350,6 +356,9 @@ export default function Index() {
           selectedSkin={selectedSkin}
           world={gameState.world}
           activePowerUps={gameState.activePowerUps}
+          activeWeapon={gameState.activeWeapon}
+          weaponAmmo={gameState.weaponAmmo}
+          comboCount={gameState.comboCount}
           isVip={isVip}
           onTap={handleTap}
         />
