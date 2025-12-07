@@ -169,6 +169,25 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
   }, []);
 
+  const goHome = useCallback(() => {
+    audioManager.stopBGM();
+    setGameState({
+      isPlaying: false, isPaused: false, isGameOver: false,
+      score: 0, distance: 0, speed: INITIAL_SPEED, coins: 0,
+      canRevive: true, hasRevived: false, multiplier: 1,
+      world: currentWorld, activePowerUps: [],
+    });
+    setPlayer({
+      x: 80, y: GROUND_Y - PLAYER_HEIGHT, width: PLAYER_WIDTH, height: PLAYER_HEIGHT,
+      velocityY: 0, isJumping: false, isOnGround: true,
+      frameIndex: 0, frameTimer: 0, hasShield: false,
+    });
+    setObstacles([]);
+    setCoins([]);
+    setPowerUps([]);
+    setParticles([]);
+  }, [currentWorld]);
+
   const endGame = useCallback(() => {
     audioManager.playDeath();
     audioManager.stopBGM();
@@ -380,5 +399,5 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return () => { if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current); };
   }, [gameState.isPlaying, gameState.isPaused, gameLoop]);
 
-  return { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive };
+  return { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive, goHome };
 }

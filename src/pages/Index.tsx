@@ -12,6 +12,7 @@ import { ShareScoreModal } from '@/components/game/ShareScoreModal';
 import { TutorialOverlay } from '@/components/game/TutorialOverlay';
 import { SettingsModal } from '@/components/game/SettingsModal';
 import { IAPShop } from '@/components/game/IAPShop';
+import { CoinStoreModal } from '@/components/game/CoinStoreModal';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
@@ -38,6 +39,7 @@ export default function Index() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showIAPShop, setShowIAPShop] = useState(false);
+  const [showCoinStore, setShowCoinStore] = useState(false);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
   const [localHighScore, setLocalHighScore] = useState(0);
@@ -61,7 +63,7 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
+  const { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -228,6 +230,7 @@ export default function Index() {
           onPause={pauseGame}
           onRestart={startGame}
           onRevive={handleRevive}
+          onGoHome={goHome}
           onToggleMute={handleToggleMute}
           onOpenLeaderboard={() => { fetchLeaderboard(); refreshFriends(); setShowLeaderboard(true); }}
           onOpenShop={() => setShowShop(true)}
@@ -239,6 +242,7 @@ export default function Index() {
           onShareScore={() => setShowShareScore(true)}
           onOpenSettings={() => setShowSettings(true)}
           onOpenIAPShop={() => setShowIAPShop(true)}
+          onOpenCoinStore={() => setShowCoinStore(true)}
         />
       </div>
 
@@ -310,6 +314,15 @@ export default function Index() {
         currentCoins={profile?.coins || 0}
         onPurchaseComplete={refreshProfile}
         onOpenAuth={() => { setShowIAPShop(false); setShowAuth(true); }}
+      />
+      <CoinStoreModal
+        isOpen={showCoinStore}
+        onClose={() => setShowCoinStore(false)}
+        isLoggedIn={!!user}
+        profileId={profile?.id || null}
+        currentCoins={profile?.coins || 0}
+        onCoinsEarned={refreshProfile}
+        onOpenAuth={() => { setShowCoinStore(false); setShowAuth(true); }}
       />
     </div>
   );
