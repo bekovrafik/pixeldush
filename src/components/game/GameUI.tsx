@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3 } from 'lucide-react';
 import { GameState, WORLD_CONFIGS } from '@/types/game';
+import { useNavigate } from 'react-router-dom';
 
 interface GameUIProps {
   gameState: GameState;
@@ -20,14 +21,16 @@ interface GameUIProps {
   onOpenWorlds: () => void;
   onOpenFriends: () => void;
   onShareScore: () => void;
+  onOpenSettings: () => void;
 }
 
 export function GameUI({
   gameState, highScore, isMuted, isLoggedIn,
   onStart, onPause, onRestart, onRevive, onToggleMute,
-  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore,
+  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
+  const navigate = useNavigate();
 
   if (!isPlaying && !isGameOver) {
     return (
@@ -44,30 +47,36 @@ export function GameUI({
           PLAY
         </Button>
 
-        <div className="grid grid-cols-4 sm:flex gap-2 sm:gap-3">
-          <Button variant="outline" size="icon" onClick={onOpenDailyReward} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3 max-w-xs sm:max-w-none">
+          <Button variant="outline" size="icon" onClick={onOpenDailyReward} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11" title="Daily Rewards">
             <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onOpenAchievements} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+          <Button variant="outline" size="icon" onClick={onOpenAchievements} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Achievements">
             <Award className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onOpenLeaderboard} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+          <Button variant="outline" size="icon" onClick={onOpenLeaderboard} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Leaderboard">
             <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onOpenFriends} className="border-secondary/50 hover:bg-secondary/20 w-10 h-10 sm:w-11 sm:h-11">
+          <Button variant="outline" size="icon" onClick={onOpenFriends} className="border-secondary/50 hover:bg-secondary/20 w-10 h-10 sm:w-11 sm:h-11" title="Friends">
             <Users className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onOpenWorlds} className="border-secondary/50 hover:bg-secondary/20 w-10 h-10 sm:w-11 sm:h-11">
+          <Button variant="outline" size="icon" onClick={onOpenWorlds} className="border-secondary/50 hover:bg-secondary/20 w-10 h-10 sm:w-11 sm:h-11" title="Worlds">
             <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onOpenShop} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+          <Button variant="outline" size="icon" onClick={onOpenShop} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Shop">
             <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onToggleMute} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+          <Button variant="outline" size="icon" onClick={() => navigate('/stats')} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11" title="Stats">
+            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenSettings} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Settings">
+            <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onToggleMute} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Sound">
             {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
           </Button>
           {!isLoggedIn && (
-            <Button variant="outline" size="icon" onClick={onOpenAuth} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
+            <Button variant="outline" size="icon" onClick={onOpenAuth} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Sign In">
               <User className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           )}
