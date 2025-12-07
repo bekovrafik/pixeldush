@@ -70,7 +70,7 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
+  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities);
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -227,6 +227,7 @@ export default function Index() {
           coins={coins}
           powerUps={powerUps}
           particles={particles}
+          boss={boss}
           score={gameState.score}
           coinCount={gameState.coins}
           speed={gameState.speed}
