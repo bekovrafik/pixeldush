@@ -7,15 +7,20 @@ import { AuthModal } from '@/components/game/AuthModal';
 import { AchievementsModal } from '@/components/game/AchievementsModal';
 import { DailyRewardModal } from '@/components/game/DailyRewardModal';
 import { WorldsModal } from '@/components/game/WorldsModal';
+import { FriendsModal } from '@/components/game/FriendsModal';
+import { ShareScoreModal } from '@/components/game/ShareScoreModal';
+import { TutorialOverlay } from '@/components/game/TutorialOverlay';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useSkins } from '@/hooks/useSkins';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useDailyRewards } from '@/hooks/useDailyRewards';
+import { useFriends } from '@/hooks/useFriends';
 import { audioManager } from '@/lib/audioManager';
 import { WorldTheme } from '@/types/game';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Index() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -24,17 +29,31 @@ export default function Index() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [showWorlds, setShowWorlds] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  const [showShareScore, setShowShareScore] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [isMuted, setIsMuted] = useState(() => audioManager.getMuted());
   const [localHighScore, setLocalHighScore] = useState(0);
   const [currentWorld, setCurrentWorld] = useState<WorldTheme>('city');
+  const [lastGameScore, setLastGameScore] = useState(0);
+  const [lastGameDistance, setLastGameDistance] = useState(0);
 
   const { user, profile, signUp, signIn, signOut, refreshProfile } = useAuth();
   const { entries, loading: leaderboardLoading, fetchLeaderboard, submitScore } = useLeaderboard();
   const { allSkins, ownedSkinIds, selectedSkin, loading: skinsLoading, purchaseSkin, selectSkin } = useSkins(profile?.id || null);
   const { achievements, unlockedIds, loading: achievementsLoading, checkAndUnlockAchievements } = useAchievements(profile?.id || null);
   const { currentStreak, canClaim, lastClaimDay, claimReward } = useDailyRewards(profile?.id || null);
+  const { friends, pendingRequests, loading: friendsLoading, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, refreshFriends } = useFriends(profile?.id || null);
 
   const { gameState, player, obstacles, coins, powerUps, particles, jump, startGame, pauseGame, revive } = useGameEngine(selectedSkin, currentWorld);
+
+  // Check if tutorial should be shown
+  useEffect(() => {
+    const tutorialShown = localStorage.getItem('pixelRunnerTutorialCompleted');
+    if (!tutorialShown) {
+      setShowTutorial(true);
+    }
+  }, []);
 
   // Load saved data
   useEffect(() => {
@@ -47,6 +66,9 @@ export default function Index() {
   // Handle game over
   useEffect(() => {
     if (gameState.isGameOver && gameState.score > 0) {
+      setLastGameScore(gameState.score);
+      setLastGameDistance(Math.floor(gameState.distance));
+
       if (gameState.score > localHighScore) {
         setLocalHighScore(gameState.score);
         localStorage.setItem('pixelRunnerHighScore', gameState.score.toString());
@@ -118,11 +140,32 @@ export default function Index() {
     toast.success(`World changed to ${world}!`);
   }, []);
 
+  const handleTutorialComplete = useCallback(async () => {
+    localStorage.setItem('pixelRunnerTutorialCompleted', 'true');
+    setShowTutorial(false);
+    
+    if (profile) {
+      await supabase
+        .from('profiles')
+        .update({ tutorial_completed: true })
+        .eq('id', profile.id);
+    }
+  }, [profile]);
+
+  const handleTutorialSkip = useCallback(() => {
+    localStorage.setItem('pixelRunnerTutorialCompleted', 'true');
+    setShowTutorial(false);
+  }, []);
+
   const highScore = profile?.high_score || localHighScore;
   const totalDistance = profile?.total_distance || 0;
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-2 sm:p-4 scanlines overflow-hidden">
+      {showTutorial && (
+        <TutorialOverlay onComplete={handleTutorialComplete} onSkip={handleTutorialSkip} />
+      )}
+
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-48 sm:w-96 h-48 sm:h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-48 sm:w-96 h-48 sm:h-96 bg-secondary/5 rounded-full blur-3xl" />
@@ -155,12 +198,14 @@ export default function Index() {
           onRestart={startGame}
           onRevive={handleRevive}
           onToggleMute={handleToggleMute}
-          onOpenLeaderboard={() => { fetchLeaderboard(); setShowLeaderboard(true); }}
+          onOpenLeaderboard={() => { fetchLeaderboard(); refreshFriends(); setShowLeaderboard(true); }}
           onOpenShop={() => setShowShop(true)}
           onOpenAuth={() => setShowAuth(true)}
           onOpenAchievements={() => setShowAchievements(true)}
           onOpenDailyReward={() => setShowDailyReward(true)}
           onOpenWorlds={() => setShowWorlds(true)}
+          onOpenFriends={() => setShowFriends(true)}
+          onShareScore={() => setShowShareScore(true)}
         />
       </div>
 
@@ -183,12 +228,39 @@ export default function Index() {
         </div>
       )}
 
-      <Leaderboard isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} entries={entries} loading={leaderboardLoading} currentProfileId={profile?.id} />
+      <Leaderboard 
+        isOpen={showLeaderboard} 
+        onClose={() => setShowLeaderboard(false)} 
+        entries={entries} 
+        loading={leaderboardLoading} 
+        currentProfileId={profile?.id}
+        friends={friends}
+      />
       <Shop isOpen={showShop} onClose={() => setShowShop(false)} allSkins={allSkins} ownedSkinIds={ownedSkinIds} selectedSkin={selectedSkin} loading={skinsLoading} isLoggedIn={!!user} onPurchase={purchaseSkin} onSelect={selectSkin} onOpenAuth={() => { setShowShop(false); setShowAuth(true); }} />
       <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} isLoggedIn={!!user} profile={profile} onSignUp={signUp} onSignIn={signIn} onSignOut={signOut} />
       <AchievementsModal isOpen={showAchievements} onClose={() => setShowAchievements(false)} achievements={achievements} unlockedIds={unlockedIds} loading={achievementsLoading} />
       <DailyRewardModal isOpen={showDailyReward} onClose={() => setShowDailyReward(false)} currentStreak={currentStreak} canClaim={canClaim} lastClaimDay={lastClaimDay} onClaim={handleClaimDailyReward} isLoggedIn={!!user} onOpenAuth={() => { setShowDailyReward(false); setShowAuth(true); }} />
       <WorldsModal isOpen={showWorlds} onClose={() => setShowWorlds(false)} currentWorld={currentWorld} totalDistance={totalDistance} onSelectWorld={handleSelectWorld} />
+      <FriendsModal 
+        isOpen={showFriends} 
+        onClose={() => setShowFriends(false)} 
+        friends={friends} 
+        pendingRequests={pendingRequests} 
+        loading={friendsLoading} 
+        isLoggedIn={!!user}
+        onSendRequest={sendFriendRequest}
+        onAccept={acceptFriendRequest}
+        onReject={rejectFriendRequest}
+        onRemove={removeFriend}
+        onOpenAuth={() => { setShowFriends(false); setShowAuth(true); }}
+      />
+      <ShareScoreModal
+        isOpen={showShareScore}
+        onClose={() => setShowShareScore(false)}
+        score={lastGameScore}
+        distance={lastGameDistance}
+        username={profile?.username}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2 } from 'lucide-react';
 import { GameState, WORLD_CONFIGS } from '@/types/game';
 
 interface GameUIProps {
@@ -18,12 +18,14 @@ interface GameUIProps {
   onOpenAchievements: () => void;
   onOpenDailyReward: () => void;
   onOpenWorlds: () => void;
+  onOpenFriends: () => void;
+  onShareScore: () => void;
 }
 
 export function GameUI({
   gameState, highScore, isMuted, isLoggedIn,
   onStart, onPause, onRestart, onRevive, onToggleMute,
-  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds,
+  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
 
@@ -51,6 +53,9 @@ export function GameUI({
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenLeaderboard} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11">
             <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenFriends} className="border-secondary/50 hover:bg-secondary/20 w-10 h-10 sm:w-11 sm:h-11">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenWorlds} className="border-secondary/50 hover:bg-secondary/20 w-10 h-10 sm:w-11 sm:h-11">
             <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-secondary" />
@@ -102,6 +107,10 @@ export function GameUI({
             TRY AGAIN
           </Button>
           <div className="flex gap-2 sm:gap-3 w-full">
+            <Button variant="outline" size="sm" onClick={onShareScore} className="flex-1 border-accent/50 text-[10px] sm:text-xs">
+              <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              SHARE
+            </Button>
             <Button variant="outline" size="sm" onClick={onOpenLeaderboard} className="flex-1 border-primary/50 text-[10px] sm:text-xs">
               <Trophy className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               SCORES
