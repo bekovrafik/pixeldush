@@ -11,6 +11,8 @@ import { FriendsModal } from '@/components/game/FriendsModal';
 import { ShareScoreModal } from '@/components/game/ShareScoreModal';
 import { TutorialOverlay } from '@/components/game/TutorialOverlay';
 import { SettingsModal } from '@/components/game/SettingsModal';
+import { IAPShop } from '@/components/game/IAPShop';
+import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
@@ -35,6 +37,7 @@ export default function Index() {
   const [showShareScore, setShowShareScore] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showIAPShop, setShowIAPShop] = useState(false);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
   const [localHighScore, setLocalHighScore] = useState(0);
@@ -226,6 +229,7 @@ export default function Index() {
           onOpenFriends={() => setShowFriends(true)}
           onShareScore={() => setShowShareScore(true)}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenIAPShop={() => setShowIAPShop(true)}
         />
       </div>
 
@@ -288,6 +292,15 @@ export default function Index() {
         isMusicMuted={isMusicMuted}
         onToggleMute={handleToggleMute}
         onToggleMusic={handleToggleMusic}
+      />
+      <IAPShop
+        isOpen={showIAPShop}
+        onClose={() => setShowIAPShop(false)}
+        isLoggedIn={!!user}
+        profileId={profile?.id || null}
+        currentCoins={profile?.coins || 0}
+        onPurchaseComplete={refreshProfile}
+        onOpenAuth={() => { setShowIAPShop(false); setShowAuth(true); }}
       />
     </div>
   );
