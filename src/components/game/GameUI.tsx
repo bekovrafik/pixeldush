@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown } from 'lucide-react';
 import { GameState, WORLD_CONFIGS } from '@/types/game';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,12 +22,13 @@ interface GameUIProps {
   onOpenFriends: () => void;
   onShareScore: () => void;
   onOpenSettings: () => void;
+  onOpenIAPShop: () => void;
 }
 
 export function GameUI({
   gameState, highScore, isMuted, isLoggedIn,
   onStart, onPause, onRestart, onRevive, onToggleMute,
-  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings,
+  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
   const navigate = useNavigate();
@@ -65,6 +66,9 @@ export function GameUI({
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenShop} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Shop">
             <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenIAPShop} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11" title="Premium Store">
+            <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
           </Button>
           <Button variant="outline" size="icon" onClick={() => navigate('/stats')} className="border-accent/50 hover:bg-accent/20 w-10 h-10 sm:w-11 sm:h-11" title="Stats">
             <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
