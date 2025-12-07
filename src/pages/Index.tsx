@@ -18,6 +18,8 @@ import { SpinWheelModal } from '@/components/game/SpinWheelModal';
 import { BattlePassModal } from '@/components/game/BattlePassModal';
 import { BossCollectionModal } from '@/components/game/BossCollectionModal';
 import { VipModal } from '@/components/game/VipModal';
+import { BossRushLeaderboardModal } from '@/components/game/BossRushLeaderboardModal';
+import { BossRushChallengesModal } from '@/components/game/BossRushChallengesModal';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +31,8 @@ import { useFriends } from '@/hooks/useFriends';
 import { useDailyChallenges } from '@/hooks/useDailyChallenges';
 import { useBattlePass } from '@/hooks/useBattlePass';
 import { useBossDefeats } from '@/hooks/useBossDefeats';
+import { useBossRushLeaderboard } from '@/hooks/useBossRushLeaderboard';
+import { useBossRushChallenges } from '@/hooks/useBossRushChallenges';
 import { useVipSubscription } from '@/hooks/useVipSubscription';
 import { useVipDailyBonus } from '@/hooks/useVipDailyBonus';
 import { useVipUsers } from '@/hooks/useVipUsers';
@@ -57,6 +61,8 @@ export default function Index() {
   const [showBattlePass, setShowBattlePass] = useState(false);
   const [showBossCollection, setShowBossCollection] = useState(false);
   const [showVip, setShowVip] = useState(false);
+  const [showBossRushLeaderboard, setShowBossRushLeaderboard] = useState(false);
+  const [showBossRushChallenges, setShowBossRushChallenges] = useState(false);
   const [powerupsCollectedThisRun, setPowerupsCollectedThisRun] = useState(0);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
@@ -75,6 +81,8 @@ export default function Index() {
   const { userProgress: challengeProgress, loading: challengesLoading, updateProgress: updateChallengeProgress, claimReward: claimChallengeReward, refetch: refetchChallenges } = useDailyChallenges(profile?.id || null);
   const { season, tiers, userProgress: battlePassProgress, loading: battlePassLoading, addXP, claimReward: claimBattlePassReward, upgradeToPremium, getSeasonTimeRemaining, refetch: refetchBattlePass } = useBattlePass(profile?.id || null);
   const { defeats: bossDefeatsFromDb, recordDefeat, getFastestKill, getTotalDefeats, loading: bossDefeatsLoading } = useBossDefeats(profile?.id || null);
+  const { rushScores, endlessScores, loading: rushLeaderboardLoading, fetchLeaderboard: fetchRushLeaderboard, submitScore: submitRushScore, getPersonalBest } = useBossRushLeaderboard();
+  const { challenges: rushChallenges, progress: rushChallengeProgress, loading: rushChallengesLoading, updateProgress: updateRushChallengeProgress, claimReward: claimRushChallengeReward, refetch: refetchRushChallenges } = useBossRushChallenges(profile?.id || null);
   const { canClaim: canClaimVipBonus, currentDay: vipBonusDay, bonusCoins: vipBonusCoins, allBonuses: allVipBonuses, claimBonus: claimVipBonus, refreshStatus: refreshVipBonus } = useVipDailyBonus(profile?.id || null, isVip);
   const { vipProfileIds } = useVipUsers();
   const { stats: vipStats, getCurrentTierInfo, getNextTierInfo, getMonthsUntilNextTier, addBonusCoinsEarned, incrementReviveUsed } = useVipStats(profile?.id || null, isVip);
@@ -172,6 +180,44 @@ export default function Index() {
       }
     }
   }, [gameState.isGameOver]);
+
+  // Handle boss arena completion - submit to leaderboard and update challenges
+  useEffect(() => {
+    if (bossArena && !bossArena.isActive && bossArena.bossesDefeated.length > 0 && profile) {
+      const completionTimeSeconds = (Date.now() - bossArena.startTime) / 1000;
+      const isEndless = bossArena.isEndlessMode;
+      const bossCount = bossArena.bossesDefeated.length;
+      
+      // Submit to leaderboard
+      submitRushScore(
+        profile.id,
+        completionTimeSeconds,
+        bossArena.totalRewards.coins + bossArena.totalRewards.xp,
+        bossCount,
+        isEndless
+      );
+      
+      // Update boss rush challenges
+      updateRushChallengeProgress({
+        rushCompleted: !isEndless && bossCount >= 3,
+        completionTime: !isEndless ? completionTimeSeconds : undefined,
+        endlessWaves: isEndless ? bossArena.endlessWave : undefined,
+        totalScore: bossArena.totalRewards.coins + bossArena.totalRewards.xp,
+      });
+      
+      // Check endless milestones
+      if (isEndless) {
+        const wave = bossArena.endlessWave;
+        if (wave >= 50) {
+          toast.success('🏆 LEGENDARY! Wave 50 reached! Cosmic Guardian unlocked!', { duration: 6000 });
+        } else if (wave >= 25) {
+          toast.success('⭐ EPIC! Wave 25 reached! Thunder Lord unlocked!', { duration: 5000 });
+        } else if (wave >= 10) {
+          toast.success('🎉 Wave 10 milestone! Frost Queen unlocked!', { duration: 4000 });
+        }
+      }
+    }
+  }, [bossArena?.isActive]);
 
   // Handle boss defeat XP reward and record to database
   useEffect(() => {
@@ -340,6 +386,8 @@ export default function Index() {
           onOpenBattlePass={() => setShowBattlePass(true)}
           onOpenBossCollection={() => setShowBossCollection(true)}
           onOpenVip={() => setShowVip(true)}
+          onOpenBossRushLeaderboard={() => { fetchRushLeaderboard(); setShowBossRushLeaderboard(true); }}
+          onOpenBossRushChallenges={() => { refetchRushChallenges(); setShowBossRushChallenges(true); }}
         />
       </div>
 
@@ -497,6 +545,31 @@ export default function Index() {
         onStartCheckout={startCheckout}
         onOpenPortal={openCustomerPortal}
         onOpenAuth={() => { setShowVip(false); setShowAuth(true); }}
+      />
+      <BossRushLeaderboardModal
+        isOpen={showBossRushLeaderboard}
+        onClose={() => setShowBossRushLeaderboard(false)}
+        rushScores={rushScores}
+        endlessScores={endlessScores}
+        loading={rushLeaderboardLoading}
+        currentProfileId={profile?.id}
+        vipUserIds={vipProfileIds}
+      />
+      <BossRushChallengesModal
+        isOpen={showBossRushChallenges}
+        onClose={() => setShowBossRushChallenges(false)}
+        challenges={rushChallenges}
+        progress={rushChallengeProgress}
+        loading={rushChallengesLoading}
+        onClaimReward={async (id) => {
+          const result = await claimRushChallengeReward(id);
+          if (result.reward) {
+            toast.success(`Claimed ${result.reward.reward_coins} coins + ${result.reward.reward_xp} XP!`);
+            refreshProfile();
+          }
+        }}
+        isLoggedIn={!!user}
+        onOpenAuth={() => { setShowBossRushChallenges(false); setShowAuth(true); }}
       />
     </div>
   );

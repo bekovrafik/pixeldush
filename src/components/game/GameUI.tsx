@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown, Home, Coins, Target, RotateCw, Star, Swords, Zap } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown, Home, Coins, Target, RotateCw, Star, Swords, Zap, Infinity, Timer } from 'lucide-react';
 import { GameState, WORLD_CONFIGS } from '@/types/game';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,12 +35,14 @@ interface GameUIProps {
   onOpenBattlePass: () => void;
   onOpenBossCollection: () => void;
   onOpenVip: () => void;
+  onOpenBossRushLeaderboard: () => void;
+  onOpenBossRushChallenges: () => void;
 }
 
 export function GameUI({
   gameState, highScore, isMuted, isLoggedIn, isVip, rushModeEnabled, endlessModeEnabled,
   onStart, onPause, onRestart, onRevive, onGoHome, onToggleMute, onToggleRushMode, onToggleEndlessMode,
-  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore, onOpenDailyChallenges, onOpenSpinWheel, onOpenBattlePass, onOpenBossCollection, onOpenVip,
+  onOpenLeaderboard, onOpenShop, onOpenAuth, onOpenAchievements, onOpenDailyReward, onOpenWorlds, onOpenFriends, onShareScore, onOpenSettings, onOpenIAPShop, onOpenCoinStore, onOpenDailyChallenges, onOpenSpinWheel, onOpenBattlePass, onOpenBossCollection, onOpenVip, onOpenBossRushLeaderboard, onOpenBossRushChallenges,
 }: GameUIProps) {
   const { isPlaying, isPaused, isGameOver, score, coins, canRevive, hasRevived, world } = gameState;
   const navigate = useNavigate();
@@ -114,6 +116,12 @@ export function GameUI({
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenBossCollection} className="border-red-500/50 hover:bg-red-500/20 w-10 h-10 sm:w-11 sm:h-11" title="Boss Collection">
             <Swords className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenBossRushLeaderboard} className="border-orange-600/50 hover:bg-orange-600/20 w-10 h-10 sm:w-11 sm:h-11" title="Rush Leaderboard">
+            <Timer className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onOpenBossRushChallenges} className="border-pink-500/50 hover:bg-pink-500/20 w-10 h-10 sm:w-11 sm:h-11" title="Rush Challenges">
+            <Infinity className="w-4 h-4 sm:w-5 sm:h-5 text-pink-500" />
           </Button>
           <Button variant="outline" size="icon" onClick={onOpenAchievements} className="border-primary/50 hover:bg-primary/20 w-10 h-10 sm:w-11 sm:h-11" title="Achievements">
             <Award className="w-4 h-4 sm:w-5 sm:h-5" />

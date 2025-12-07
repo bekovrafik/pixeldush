@@ -93,7 +93,7 @@ export function useBossRushLeaderboard() {
       .eq('is_endless_mode', isEndless)
       .order(isEndless ? 'bosses_defeated' : 'completion_time_seconds', { ascending: !isEndless })
       .limit(1)
-      .single();
+      .maybeSingle();
     
     return data;
   }, []);
