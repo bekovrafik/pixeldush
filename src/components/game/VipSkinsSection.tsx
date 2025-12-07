@@ -15,7 +15,12 @@ const VIP_SKIN_EFFECTS: Record<string, { effect: string; color: string }> = {
   diamond: { effect: '✨ Sparkling Aura', color: 'from-cyan-400 to-blue-400' },
   phoenix: { effect: '🔥 Fire Trail', color: 'from-orange-400 to-red-400' },
   shadow_king: { effect: '👤 Shadow Clones', color: 'from-purple-400 to-indigo-400' },
+  frost_queen: { effect: '❄️ Ice Crystals', color: 'from-blue-300 to-cyan-300' },
+  thunder_lord: { effect: '⚡ Lightning Bolts', color: 'from-yellow-400 to-blue-400' },
+  cosmic_guardian: { effect: '🌌 Cosmic Stars', color: 'from-purple-500 to-pink-400' },
 };
+
+const VIP_SKIN_IDS = ['diamond', 'phoenix', 'shadow_king', 'frost_queen', 'thunder_lord', 'cosmic_guardian'];
 
 export function VipSkinsSection({ 
   vipSkins, 
@@ -26,7 +31,7 @@ export function VipSkinsSection({
   onOpenShop
 }: VipSkinsSectionProps) {
   const vipExclusiveSkins = vipSkins.filter(skin => 
-    ['diamond', 'phoenix', 'shadow_king'].includes(skin.id)
+    VIP_SKIN_IDS.includes(skin.id)
   );
 
   return (

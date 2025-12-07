@@ -44,6 +44,7 @@ export interface BossArenaState {
   breakTimer: number;
   totalRewards: { coins: number; xp: number };
   arenaStartDistance: number;
+  hasDied: boolean; // Track if player died during arena for streak bonus
 }
 
 export const ARENA_TRIGGER_DISTANCE = 2000;

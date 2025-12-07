@@ -226,7 +226,11 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setGameState(prev => ({ ...prev, isPlaying: true, isGameOver: false, hasRevived: true, canRevive: false }));
     setPlayer(prev => ({ ...prev, y: GROUND_Y - PLAYER_HEIGHT, velocityY: 0, isJumping: false, isOnGround: true }));
     setObstacles([]);
-  }, [gameState.canRevive, gameState.hasRevived]);
+    // Mark that player died during arena (for streak bonus tracking)
+    if (bossArena?.isActive) {
+      setBossArena(prev => prev ? { ...prev, hasDied: true } : null);
+    }
+  }, [gameState.canRevive, gameState.hasRevived, bossArena]);
 
   const activatePowerUp = useCallback((type: PowerUpType) => {
     audioManager.playCoin();
@@ -320,6 +324,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         breakTimer: 0,
         totalRewards: { coins: 0, xp: 0 },
         arenaStartDistance: currentDistance,
+        hasDied: false,
       });
       audioManager.playBossWarning();
     }
@@ -330,7 +335,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       if (bossArena.breakTimer > 0) {
         setBossArena(prev => prev ? { ...prev, breakTimer: prev.breakTimer - 1 } : null);
         
-        // Spawn next boss when break ends
+        // Spawn next boss when break ends and give VIP shield
         if (bossArena.breakTimer === 1 && bossArena.currentBossIndex < ARENA_BOSS_SEQUENCE.length) {
           const nextBossType = ARENA_BOSS_SEQUENCE[bossArena.currentBossIndex];
           const bossConfig = getArenaBossConfig(nextBossType, bossArena.currentBossIndex);
@@ -348,6 +353,10 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             isAttacking: false,
             projectiles: [],
           });
+          // VIP users get free shield at start of each boss fight
+          if (isVip) {
+            activatePowerUp('shield');
+          }
         }
       }
       // Spawn first boss if not spawned yet
@@ -368,6 +377,10 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           isAttacking: false,
           projectiles: [],
         });
+        // VIP users get free shield at start of first boss fight
+        if (isVip) {
+          activatePowerUp('shield');
+        }
       }
     }
     
@@ -518,18 +531,29 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             // Handle arena mode progression
             if (bossArena?.isActive) {
               const newBossesDefeated = [...bossArena.bossesDefeated, prevBoss.type];
-              const newTotalRewards = {
+              const baseNewRewards = {
                 coins: bossArena.totalRewards.coins + bossConfig.rewardCoins,
                 xp: bossArena.totalRewards.xp + bossConfig.rewardXP,
               };
               
               if (newBossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
-                // Arena complete!
+                // Arena complete! Apply streak bonus if no deaths
+                const streakMultiplier = bossArena.hasDied ? 1 : 2;
+                const finalRewards = {
+                  coins: baseNewRewards.coins * streakMultiplier,
+                  xp: baseNewRewards.xp * streakMultiplier,
+                };
+                
+                // Add streak bonus coins to game state
+                if (!bossArena.hasDied) {
+                  setGameState(gs => ({ ...gs, coins: gs.coins + baseNewRewards.coins })); // Double the coins (already added once)
+                }
+                
                 setBossArena({
                   ...bossArena,
                   isActive: false,
                   bossesDefeated: newBossesDefeated,
-                  totalRewards: newTotalRewards,
+                  totalRewards: finalRewards,
                   breakTimer: 0,
                 });
               } else {
@@ -538,7 +562,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
                   ...bossArena,
                   currentBossIndex: bossArena.currentBossIndex + 1,
                   bossesDefeated: newBossesDefeated,
-                  totalRewards: newTotalRewards,
+                  totalRewards: baseNewRewards,
                   breakTimer: ARENA_BREAK_DURATION,
                 });
               }

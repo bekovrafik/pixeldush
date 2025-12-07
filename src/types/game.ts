@@ -270,7 +270,7 @@ export interface VipSkinEffect {
   skinId: string;
   trailColors: string[];
   glowColor: string;
-  particleType: 'sparkle' | 'fire' | 'shadow';
+  particleType: 'sparkle' | 'fire' | 'shadow' | 'ice' | 'lightning' | 'cosmic';
   trailLength: number;
   particleCount: number;
 }
@@ -299,5 +299,29 @@ export const VIP_SKIN_EFFECTS: Record<string, VipSkinEffect> = {
     particleType: 'shadow',
     trailLength: 4,
     particleCount: 3,
+  },
+  frost_queen: {
+    skinId: 'frost_queen',
+    trailColors: ['#ADD8E6', '#87CEEB', '#B0E0E6', '#FFFFFF'],
+    glowColor: 'rgba(173, 216, 230, 0.5)',
+    particleType: 'ice',
+    trailLength: 5,
+    particleCount: 4,
+  },
+  thunder_lord: {
+    skinId: 'thunder_lord',
+    trailColors: ['#FFD700', '#FFFF00', '#87CEEB', '#FFFFFF'],
+    glowColor: 'rgba(255, 215, 0, 0.5)',
+    particleType: 'lightning',
+    trailLength: 4,
+    particleCount: 5,
+  },
+  cosmic_guardian: {
+    skinId: 'cosmic_guardian',
+    trailColors: ['#9400D3', '#4B0082', '#0000FF', '#FF1493'],
+    glowColor: 'rgba(148, 0, 211, 0.4)',
+    particleType: 'cosmic',
+    trailLength: 6,
+    particleCount: 4,
   },
 };
