@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trophy, ShoppingBag, Volume2, VolumeX, User, Gift, Award, Globe, Users, Share2, Settings, BarChart3, Crown, Home } from 'lucide-react';
 import { GameState, WORLD_CONFIGS } from '@/types/game';
 import { useNavigate } from 'react-router-dom';
 
@@ -115,20 +115,26 @@ export function GameUI({
               REVIVE (WATCH AD)
             </Button>
           )}
-          <Button onClick={onRestart} className="game-button w-full text-xs sm:text-sm py-3">
-            <RotateCcw className="w-4 h-4 mr-2" />
-            TRY AGAIN
-          </Button>
           <div className="flex gap-2 sm:gap-3 w-full">
-            <Button variant="outline" size="sm" onClick={onShareScore} className="flex-1 border-accent/50 text-[10px] sm:text-xs">
+            <Button onClick={onRestart} className="game-button flex-1 text-xs sm:text-sm py-3">
+              <RotateCcw className="w-4 h-4 mr-1 sm:mr-2" />
+              RETRY
+            </Button>
+            <Button onClick={onStart} variant="outline" className="flex-1 border-primary/50 text-xs sm:text-sm py-3">
+              <Home className="w-4 h-4 mr-1 sm:mr-2" />
+              HOME
+            </Button>
+          </div>
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={onShareScore} className="flex-1 border-accent/50 text-[10px] sm:text-xs h-9">
               <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               SHARE
             </Button>
-            <Button variant="outline" size="sm" onClick={onOpenLeaderboard} className="flex-1 border-primary/50 text-[10px] sm:text-xs">
+            <Button variant="outline" size="sm" onClick={onOpenLeaderboard} className="flex-1 border-primary/50 text-[10px] sm:text-xs h-9">
               <Trophy className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               SCORES
             </Button>
-            <Button variant="outline" size="sm" onClick={onOpenShop} className="flex-1 border-primary/50 text-[10px] sm:text-xs">
+            <Button variant="outline" size="sm" onClick={onOpenShop} className="flex-1 border-primary/50 text-[10px] sm:text-xs h-9">
               <ShoppingBag className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               SHOP
             </Button>

@@ -67,15 +67,15 @@ export function Shop({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-card border-primary/30">
+      <DialogContent className="max-w-[95vw] sm:max-w-md bg-card border-primary/30 p-4 sm:p-6 max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle className="font-pixel text-lg text-primary flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5" />
+          <DialogTitle className="font-pixel text-base sm:text-lg text-primary flex items-center gap-2">
+            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
             CHARACTER SHOP
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="h-[400px] pr-4">
+        <ScrollArea className="h-[50vh] sm:h-[400px] pr-2 sm:pr-4">
           {loading ? (
             <div className="flex items-center justify-center h-32">
               <div className="font-pixel text-xs text-muted-foreground animate-pulse">
@@ -83,7 +83,7 @@ export function Shop({
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {allSkins.map((skin) => {
                 const isOwned = ownedSkinIds.includes(skin.id);
                 const isSelected = selectedSkin === skin.id;
@@ -92,7 +92,7 @@ export function Shop({
                 return (
                   <div
                     key={skin.id}
-                    className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+                    className={`flex items-center gap-2 sm:gap-4 p-2 sm:p-4 rounded-lg border transition-all ${
                       isSelected 
                         ? 'border-primary bg-primary/10' 
                         : isOwned 
@@ -102,46 +102,46 @@ export function Shop({
                   >
                     {/* Character preview */}
                     <div 
-                      className="w-12 h-14 rounded flex-shrink-0 relative"
+                      className="w-10 h-12 sm:w-12 sm:h-14 rounded flex-shrink-0 relative"
                       style={{
                         backgroundColor: colors.body,
                         boxShadow: isSelected ? `0 0 20px ${colors.body}40` : undefined,
                       }}
                     >
                       <div 
-                        className="absolute top-1 left-1 right-1 h-4 rounded-t"
+                        className="absolute top-1 left-1 right-1 h-3 sm:h-4 rounded-t"
                         style={{ backgroundColor: colors.body }}
                       />
                       <div 
-                        className="absolute top-2 right-2 w-3 h-2"
+                        className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 w-2 sm:w-3 h-1.5 sm:h-2"
                         style={{ backgroundColor: colors.accent }}
                       />
                       <div 
-                        className="absolute bottom-0 left-1 w-3 h-3"
+                        className="absolute bottom-0 left-1 w-2 sm:w-3 h-2 sm:h-3"
                         style={{ backgroundColor: colors.accent }}
                       />
                       <div 
-                        className="absolute bottom-0 right-1 w-3 h-3"
+                        className="absolute bottom-0 right-1 w-2 sm:w-3 h-2 sm:h-3"
                         style={{ backgroundColor: colors.accent }}
                       />
                       {skin.is_premium && (
-                        <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-accent" />
+                        <Sparkles className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 text-accent" />
                       )}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-pixel text-xs text-foreground truncate">
+                      <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                        <p className="font-pixel text-[10px] sm:text-xs text-foreground truncate">
                           {skin.name}
                         </p>
                         {skin.is_premium && (
-                          <span className="text-[10px] px-1 py-0.5 rounded bg-accent/20 text-accent font-pixel">
+                          <span className="text-[8px] sm:text-[10px] px-1 py-0.5 rounded bg-accent/20 text-accent font-pixel">
                             PREMIUM
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">
                         {skin.description}
                       </p>
                     </div>
@@ -151,15 +151,15 @@ export function Shop({
                       {isOwned ? (
                         isSelected ? (
                           <div className="flex items-center gap-1 text-primary">
-                            <Check className="w-4 h-4" />
-                            <span className="font-pixel text-[10px]">EQUIPPED</span>
+                            <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="font-pixel text-[8px] sm:text-[10px]">EQUIPPED</span>
                           </div>
                         ) : (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleSelect(skin.id)}
-                            className="font-pixel text-[10px]"
+                            className="font-pixel text-[9px] sm:text-[10px] h-7 sm:h-8 px-2 sm:px-3"
                           >
                             EQUIP
                           </Button>
@@ -168,14 +168,14 @@ export function Shop({
                         <Button
                           size="sm"
                           onClick={() => handlePurchase(skin)}
-                          className="font-pixel text-[10px] gap-1"
+                          className="font-pixel text-[9px] sm:text-[10px] gap-1 h-7 sm:h-8 px-2 sm:px-3"
                           disabled={skin.price === 0}
                         >
                           {skin.price === 0 ? (
                             'FREE'
                           ) : (
                             <>
-                              <Lock className="w-3 h-3" />
+                              <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               {skin.price}
                             </>
                           )}
@@ -190,11 +190,11 @@ export function Shop({
         </ScrollArea>
 
         {!isLoggedIn && (
-          <div className="mt-4 p-3 rounded-lg bg-muted/50 text-center">
-            <p className="text-xs text-muted-foreground mb-2">
+          <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-lg bg-muted/50 text-center">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-2">
               Sign in to save your purchases
             </p>
-            <Button size="sm" onClick={onOpenAuth} className="font-pixel text-[10px]">
+            <Button size="sm" onClick={onOpenAuth} className="font-pixel text-[9px] sm:text-[10px] h-7 sm:h-8">
               SIGN IN
             </Button>
           </div>
