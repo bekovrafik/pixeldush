@@ -37,6 +37,19 @@ export interface BossConfig {
   rewardXP: number;
 }
 
+export interface BossArenaState {
+  isActive: boolean;
+  currentBossIndex: number;
+  bossesDefeated: string[];
+  breakTimer: number;
+  totalRewards: { coins: number; xp: number };
+  arenaStartDistance: number;
+}
+
+export const ARENA_TRIGGER_DISTANCE = 2000;
+export const ARENA_BREAK_DURATION = 180; // 3 seconds at 60fps
+export const ARENA_BOSS_SEQUENCE: Boss['type'][] = ['mech', 'dragon', 'titan'];
+
 export const BOSS_CONFIGS: BossConfig[] = [
   {
     type: 'mech',
@@ -75,3 +88,15 @@ export const BOSS_CONFIGS: BossConfig[] = [
     rewardXP: 800,
   },
 ];
+
+export const getArenaBossConfig = (bossType: Boss['type'], bossIndex: number): BossConfig => {
+  const baseConfig = BOSS_CONFIGS.find(c => c.type === bossType)!;
+  const difficultyMultiplier = 1 + bossIndex * 0.25; // Each subsequent boss is 25% harder
+  return {
+    ...baseConfig,
+    health: Math.ceil(baseConfig.health * difficultyMultiplier),
+    attackInterval: Math.max(30, Math.floor(baseConfig.attackInterval / difficultyMultiplier)),
+    rewardCoins: Math.floor(baseConfig.rewardCoins * (1 + bossIndex * 0.5)),
+    rewardXP: Math.floor(baseConfig.rewardXP * (1 + bossIndex * 0.5)),
+  };
+};

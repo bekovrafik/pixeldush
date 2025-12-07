@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameState, Player, Obstacle, Particle, Coin, PowerUp, PowerUpType, WorldTheme, WORLD_CONFIGS } from '@/types/game';
-import { Boss, BossProjectile, BOSS_CONFIGS } from '@/types/boss';
+import { Boss, BossProjectile, BOSS_CONFIGS, BossArenaState, ARENA_TRIGGER_DISTANCE, ARENA_BREAK_DURATION, ARENA_BOSS_SEQUENCE, getArenaBossConfig } from '@/types/boss';
 import { audioManager } from '@/lib/audioManager';
 
 const GRAVITY = 0.8;
@@ -62,6 +62,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const [defeatedBosses, setDefeatedBosses] = useState<string[]>([]);
   const [bossRewards, setBossRewards] = useState<{ coins: number; xp: number } | null>(null);
   const [bossWarning, setBossWarning] = useState<{ name: string; countdown: number } | null>(null);
+  const [bossArena, setBossArena] = useState<BossArenaState | null>(null);
   
   const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
@@ -69,6 +70,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const coinTimerRef = useRef<number>(0);
   const powerUpTimerRef = useRef<number>(0);
   const bossSpawnedRef = useRef<Set<string>>(new Set());
+  const arenaTriggeredRef = useRef<boolean>(false);
 
   const hasMagnet = gameState.activePowerUps.some(p => p.type === 'magnet');
   const hasShield = gameState.activePowerUps.some(p => p.type === 'shield');
@@ -173,7 +175,12 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setParticles([]);
     setBoss(null);
     setBossRewards(null);
+    setBossArena(null);
     bossSpawnedRef.current = new Set();
+    arenaTriggeredRef.current = false;
+    obstacleTimerRef.current = 0;
+    coinTimerRef.current = 0;
+    powerUpTimerRef.current = 0;
     obstacleTimerRef.current = 0;
     coinTimerRef.current = 0;
     powerUpTimerRef.current = 0;
@@ -202,6 +209,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setParticles([]);
     setBoss(null);
     setBossRewards(null);
+    setBossArena(null);
+    arenaTriggeredRef.current = false;
   }, [currentWorld]);
 
   const endGame = useCallback(() => {
@@ -298,27 +307,53 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       };
     });
 
-    // Check for boss warning and spawn
+    // Check for boss arena trigger
     const currentDistance = gameState.distance;
-    for (const bossConfig of BOSS_CONFIGS) {
-      const warningDistance = bossConfig.triggerDistance - 200;
-      
-      // Show warning before boss spawns
-      if (!bossSpawnedRef.current.has(bossConfig.type) && 
-          currentDistance >= warningDistance && 
-          currentDistance < bossConfig.triggerDistance &&
-          !bossWarning) {
-        const countdown = Math.ceil((bossConfig.triggerDistance - currentDistance) / gameState.speed / 60);
-        setBossWarning({ name: bossConfig.name, countdown: Math.max(1, countdown) });
-        audioManager.playBossWarning();
+    
+    // Start Boss Arena Mode when reaching trigger distance
+    if (!arenaTriggeredRef.current && currentDistance >= ARENA_TRIGGER_DISTANCE && !bossArena && !boss) {
+      arenaTriggeredRef.current = true;
+      setBossArena({
+        isActive: true,
+        currentBossIndex: 0,
+        bossesDefeated: [],
+        breakTimer: 0,
+        totalRewards: { coins: 0, xp: 0 },
+        arenaStartDistance: currentDistance,
+      });
+      audioManager.playBossWarning();
+    }
+    
+    // Handle Boss Arena Mode
+    if (bossArena?.isActive) {
+      // During break timer between bosses
+      if (bossArena.breakTimer > 0) {
+        setBossArena(prev => prev ? { ...prev, breakTimer: prev.breakTimer - 1 } : null);
+        
+        // Spawn next boss when break ends
+        if (bossArena.breakTimer === 1 && bossArena.currentBossIndex < ARENA_BOSS_SEQUENCE.length) {
+          const nextBossType = ARENA_BOSS_SEQUENCE[bossArena.currentBossIndex];
+          const bossConfig = getArenaBossConfig(nextBossType, bossArena.currentBossIndex);
+          setBoss({
+            id: bossConfig.type,
+            x: 850,
+            y: GROUND_Y - bossConfig.height,
+            width: bossConfig.width,
+            height: bossConfig.height,
+            health: bossConfig.health,
+            maxHealth: bossConfig.health,
+            type: bossConfig.type,
+            phase: 1,
+            attackTimer: bossConfig.attackInterval,
+            isAttacking: false,
+            projectiles: [],
+          });
+        }
       }
-      
-      // Spawn boss
-      if (!bossSpawnedRef.current.has(bossConfig.type) && 
-          currentDistance >= bossConfig.triggerDistance && 
-          currentDistance < bossConfig.triggerDistance + 100) {
-        bossSpawnedRef.current.add(bossConfig.type);
-        setBossWarning(null);
+      // Spawn first boss if not spawned yet
+      else if (!boss && bossArena.currentBossIndex === 0 && bossArena.bossesDefeated.length === 0) {
+        const firstBossType = ARENA_BOSS_SEQUENCE[0];
+        const bossConfig = getArenaBossConfig(firstBossType, 0);
         setBoss({
           id: bossConfig.type,
           x: 850,
@@ -336,13 +371,52 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       }
     }
     
+    // Legacy boss spawn (for non-arena mode, if arena was skipped somehow)
+    if (!bossArena) {
+      for (const bossConfig of BOSS_CONFIGS) {
+        const warningDistance = bossConfig.triggerDistance - 200;
+        
+        // Show warning before boss spawns
+        if (!bossSpawnedRef.current.has(bossConfig.type) && 
+            currentDistance >= warningDistance && 
+            currentDistance < bossConfig.triggerDistance &&
+            !bossWarning) {
+          const countdown = Math.ceil((bossConfig.triggerDistance - currentDistance) / gameState.speed / 60);
+          setBossWarning({ name: bossConfig.name, countdown: Math.max(1, countdown) });
+          audioManager.playBossWarning();
+        }
+        
+        // Spawn boss
+        if (!bossSpawnedRef.current.has(bossConfig.type) && 
+            currentDistance >= bossConfig.triggerDistance && 
+            currentDistance < bossConfig.triggerDistance + 100) {
+          bossSpawnedRef.current.add(bossConfig.type);
+          setBossWarning(null);
+          setBoss({
+            id: bossConfig.type,
+            x: 850,
+            y: GROUND_Y - bossConfig.height,
+            width: bossConfig.width,
+            height: bossConfig.height,
+            health: bossConfig.health,
+            maxHealth: bossConfig.health,
+            type: bossConfig.type,
+            phase: 1,
+            attackTimer: bossConfig.attackInterval,
+            isAttacking: false,
+            projectiles: [],
+          });
+        }
+      }
+    }
+    
     // Update boss warning countdown
     if (bossWarning && bossWarning.countdown > 0) {
       setBossWarning(prev => prev ? { ...prev, countdown: Math.max(0, prev.countdown - 0.016) } : null);
     }
 
-    // Generate obstacles (skip during boss fight)
-    if (!boss) {
+    // Generate obstacles (skip during boss fight or arena mode)
+    if (!boss && !bossArena?.isActive) {
       obstacleTimerRef.current += 1;
       const minInterval = Math.max(60, 120 - gameState.speed * 5);
       if (obstacleTimerRef.current >= minInterval + Math.random() * 60) {
@@ -356,16 +430,18 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       }
     }
 
-    // Generate coins
+    // Generate coins (reduced during arena)
     coinTimerRef.current += 1;
-    if (coinTimerRef.current >= 50 + Math.random() * 30) {
+    const coinInterval = bossArena?.isActive ? 80 : 50;
+    if (coinTimerRef.current >= coinInterval + Math.random() * 30) {
       coinTimerRef.current = 0;
       setCoins(prev => [...prev, generateCoin()]);
     }
 
-    // Generate power-ups (rare)
+    // Generate power-ups (rare, even more rare during arena)
     powerUpTimerRef.current += 1;
-    if (powerUpTimerRef.current >= 400 + Math.random() * 200) {
+    const powerUpInterval = bossArena?.isActive ? 600 : 400;
+    if (powerUpTimerRef.current >= powerUpInterval + Math.random() * 200) {
       powerUpTimerRef.current = 0;
       setPowerUps(prev => [...prev, generatePowerUp()]);
     }
@@ -430,12 +506,44 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           
           if (newBoss.health <= 0) {
             // Boss defeated!
-            const bossConfig = BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
+            const bossConfig = bossArena 
+              ? getArenaBossConfig(prevBoss.type, bossArena.currentBossIndex)
+              : BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
             setBossRewards({ coins: bossConfig.rewardCoins, xp: bossConfig.rewardXP });
             setGameState(gs => ({ ...gs, coins: gs.coins + bossConfig.rewardCoins }));
             setDefeatedBosses(prev => [...prev, prevBoss.type]);
             setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
             audioManager.playBossDefeated();
+            
+            // Handle arena mode progression
+            if (bossArena?.isActive) {
+              const newBossesDefeated = [...bossArena.bossesDefeated, prevBoss.type];
+              const newTotalRewards = {
+                coins: bossArena.totalRewards.coins + bossConfig.rewardCoins,
+                xp: bossArena.totalRewards.xp + bossConfig.rewardXP,
+              };
+              
+              if (newBossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
+                // Arena complete!
+                setBossArena({
+                  ...bossArena,
+                  isActive: false,
+                  bossesDefeated: newBossesDefeated,
+                  totalRewards: newTotalRewards,
+                  breakTimer: 0,
+                });
+              } else {
+                // Start break before next boss
+                setBossArena({
+                  ...bossArena,
+                  currentBossIndex: bossArena.currentBossIndex + 1,
+                  bossesDefeated: newBossesDefeated,
+                  totalRewards: newTotalRewards,
+                  breakTimer: ARENA_BREAK_DURATION,
+                });
+              }
+            }
+            
             return null;
           }
           
@@ -538,7 +646,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.velocityX, y: p.y + p.velocityY, life: p.life - 1 })).filter(p => p.life > 0));
 
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, player, hasMagnet, hasShield, boss, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities, isVip]);
+  }, [gameState, player, hasMagnet, hasShield, boss, bossArena, generateObstacle, generateCoin, generatePowerUp, checkCollision, createParticles, activatePowerUp, endGame, skinAbilities, isVip]);
 
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {
@@ -547,5 +655,5 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     return () => { if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current); };
   }, [gameState.isPlaying, gameState.isPaused, gameLoop]);
 
-  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, defeatedBosses, jump, startGame, pauseGame, revive, goHome };
+  return { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, jump, startGame, pauseGame, revive, goHome };
 }

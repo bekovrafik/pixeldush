@@ -77,7 +77,7 @@ export default function Index() {
   const { defeats: bossDefeatsFromDb, recordDefeat, getFastestKill, getTotalDefeats, loading: bossDefeatsLoading } = useBossDefeats(profile?.id || null);
   const { canClaim: canClaimVipBonus, currentDay: vipBonusDay, bonusCoins: vipBonusCoins, allBonuses: allVipBonuses, claimBonus: claimVipBonus, refreshStatus: refreshVipBonus } = useVipDailyBonus(profile?.id || null, isVip);
   const { vipProfileIds } = useVipUsers();
-  const { stats: vipStats, getCurrentTierInfo, getNextTierInfo, getMonthsUntilNextTier, addBonusCoinsEarned } = useVipStats(profile?.id || null, isVip);
+  const { stats: vipStats, getCurrentTierInfo, getNextTierInfo, getMonthsUntilNextTier, addBonusCoinsEarned, incrementReviveUsed } = useVipStats(profile?.id || null, isVip);
 
   // Track if VIP welcome has been shown this session
   const [vipWelcomeShown, setVipWelcomeShown] = useState(false);
@@ -106,7 +106,7 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
+  const { gameState, player, obstacles, coins, powerUps, particles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, jump, startGame, pauseGame, revive, goHome } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -211,7 +211,8 @@ export default function Index() {
     // VIP users can revive without watching ads
     if (isVip) {
       revive();
-      toast.success('VIP Revive!');
+      incrementReviveUsed(); // Track ad-free revive usage
+      toast.success('VIP Revive! 👑');
       return;
     }
     
@@ -225,7 +226,7 @@ export default function Index() {
     } else {
       toast.error('Ad not available. Please try again.');
     }
-  }, [revive, isVip]);
+  }, [revive, isVip, incrementReviveUsed]);
 
   const handleToggleMute = useCallback(() => {
     const newMuted = !isSfxMuted;
@@ -295,6 +296,7 @@ export default function Index() {
           particles={particles}
           boss={boss}
           bossWarning={bossWarning}
+          bossArena={bossArena}
           score={gameState.score}
           coinCount={gameState.coins}
           speed={gameState.speed}
