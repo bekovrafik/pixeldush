@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          description: string
+          icon: string
+          id: string
+          name: string
+          requirement_type: string
+          requirement_value: number
+          reward_coins: number
+        }
+        Insert: {
+          description: string
+          icon: string
+          id: string
+          name: string
+          requirement_type: string
+          requirement_value: number
+          reward_coins?: number
+        }
+        Update: {
+          description?: string
+          icon?: string
+          id?: string
+          name?: string
+          requirement_type?: string
+          requirement_value?: number
+          reward_coins?: number
+        }
+        Relationships: []
+      }
       character_skins: {
         Row: {
           description: string | null
@@ -37,6 +67,38 @@ export type Database = {
           price?: number
         }
         Relationships: []
+      }
+      daily_rewards: {
+        Row: {
+          claimed_at: string
+          coins_reward: number
+          day_number: number
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          coins_reward: number
+          day_number: number
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          claimed_at?: string
+          coins_reward?: number
+          day_number?: number
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_rewards_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leaderboard_entries: {
         Row: {
@@ -111,9 +173,13 @@ export type Database = {
       }
       profiles: {
         Row: {
+          coins: number
           created_at: string
+          current_world: string
           high_score: number
           id: string
+          last_daily_claim: string | null
+          login_streak: number
           total_distance: number
           total_runs: number
           updated_at: string
@@ -121,9 +187,13 @@ export type Database = {
           username: string
         }
         Insert: {
+          coins?: number
           created_at?: string
+          current_world?: string
           high_score?: number
           id?: string
+          last_daily_claim?: string | null
+          login_streak?: number
           total_distance?: number
           total_runs?: number
           updated_at?: string
@@ -131,9 +201,13 @@ export type Database = {
           username?: string
         }
         Update: {
+          coins?: number
           created_at?: string
+          current_world?: string
           high_score?: number
           id?: string
+          last_daily_claim?: string | null
+          login_streak?: number
           total_distance?: number
           total_runs?: number
           updated_at?: string
@@ -141,6 +215,42 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          id: string
+          profile_id: string
+          unlocked_at: string
+        }
+        Insert: {
+          achievement_id: string
+          id?: string
+          profile_id: string
+          unlocked_at?: string
+        }
+        Update: {
+          achievement_id?: string
+          id?: string
+          profile_id?: string
+          unlocked_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_achievements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

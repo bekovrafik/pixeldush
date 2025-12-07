@@ -10,30 +10,22 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
-        // Defer profile fetch to avoid deadlock
         if (session?.user) {
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-          }, 0);
+          setTimeout(() => fetchProfile(session.user.id), 0);
         } else {
           setProfile(null);
         }
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
+      if (session?.user) fetchProfile(session.user.id);
       setLoading(false);
     });
 
@@ -41,38 +33,24 @@ export function useAuth() {
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('user_id', userId)
       .maybeSingle();
-
-    if (!error && data) {
-      setProfile(data as Profile);
-    }
+    if (data) setProfile(data as unknown as Profile);
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: { username },
-      },
+      email, password,
+      options: { emailRedirectTo: `${window.location.origin}/`, data: { username } },
     });
-    
     return { data, error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     return { data, error };
   };
 
@@ -81,32 +59,7 @@ export function useAuth() {
     return { error };
   };
 
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!profile) return { error: new Error('No profile found') };
+  const refreshProfile = () => { if (user) fetchProfile(user.id); };
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', profile.id)
-      .select()
-      .single();
-
-    if (!error && data) {
-      setProfile(data as Profile);
-    }
-
-    return { data, error };
-  };
-
-  return {
-    user,
-    session,
-    profile,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-    updateProfile,
-    refreshProfile: () => user && fetchProfile(user.id),
-  };
+  return { user, session, profile, loading, signUp, signIn, signOut, refreshProfile };
 }
