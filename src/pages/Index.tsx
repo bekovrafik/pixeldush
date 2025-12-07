@@ -8,16 +8,17 @@ import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useSkins } from '@/hooks/useSkins';
+import { audioManager } from '@/lib/audioManager';
 import { toast } from 'sonner';
 
 export default function Index() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(() => audioManager.getMuted());
   const [localHighScore, setLocalHighScore] = useState(0);
 
-  const { user, profile, signUp, signIn, signOut, updateProfile } = useAuth();
+  const { user, profile, signUp, signIn, signOut } = useAuth();
   const { entries, loading: leaderboardLoading, fetchLeaderboard, submitScore } = useLeaderboard();
   const { 
     allSkins, 
@@ -31,7 +32,8 @@ export default function Index() {
   const { 
     gameState, 
     player, 
-    obstacles, 
+    obstacles,
+    coins,
     particles, 
     jump, 
     startGame, 
@@ -39,22 +41,18 @@ export default function Index() {
     revive 
   } = useGameEngine(selectedSkin);
 
-  // Load local high score
   useEffect(() => {
     const saved = localStorage.getItem('pixelRunnerHighScore');
     if (saved) setLocalHighScore(parseInt(saved, 10));
   }, []);
 
-  // Handle game over - submit score
   useEffect(() => {
     if (gameState.isGameOver && gameState.score > 0) {
-      // Update local high score
       if (gameState.score > localHighScore) {
         setLocalHighScore(gameState.score);
         localStorage.setItem('pixelRunnerHighScore', gameState.score.toString());
       }
 
-      // Submit to leaderboard if logged in
       if (profile) {
         submitScore(profile.id, gameState.score, gameState.distance, selectedSkin)
           .then(({ error }) => {
@@ -66,7 +64,6 @@ export default function Index() {
     }
   }, [gameState.isGameOver]);
 
-  // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -87,6 +84,7 @@ export default function Index() {
   }, [gameState.isPlaying, gameState.isGameOver, jump, startGame, pauseGame]);
 
   const handleTap = useCallback(() => {
+    audioManager.resumeContext();
     if (!gameState.isPlaying && !gameState.isGameOver) {
       startGame();
     } else if (gameState.isPlaying && !gameState.isPaused) {
@@ -102,23 +100,30 @@ export default function Index() {
     }, 1500);
   }, [revive]);
 
+  const handleToggleMute = useCallback(() => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    audioManager.setMuted(newMuted);
+    audioManager.playClick();
+  }, [isMuted]);
+
   const highScore = profile?.high_score || localHighScore;
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 scanlines">
-      {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Game container */}
       <div className="relative w-full max-w-4xl">
         <GameCanvas
           player={player}
           obstacles={obstacles}
+          coins={coins}
           particles={particles}
           score={gameState.score}
+          coinCount={gameState.coins}
           speed={gameState.speed}
           isPlaying={gameState.isPlaying}
           selectedSkin={selectedSkin}
@@ -134,24 +139,29 @@ export default function Index() {
           onPause={pauseGame}
           onRestart={startGame}
           onRevive={handleRevive}
-          onToggleMute={() => setIsMuted(!isMuted)}
+          onToggleMute={handleToggleMute}
           onOpenLeaderboard={() => {
+            audioManager.playClick();
             fetchLeaderboard();
             setShowLeaderboard(true);
           }}
-          onOpenShop={() => setShowShop(true)}
-          onOpenAuth={() => setShowAuth(true)}
+          onOpenShop={() => {
+            audioManager.playClick();
+            setShowShop(true);
+          }}
+          onOpenAuth={() => {
+            audioManager.playClick();
+            setShowAuth(true);
+          }}
         />
       </div>
 
-      {/* Instructions */}
       {!gameState.isPlaying && !gameState.isGameOver && (
         <p className="mt-4 text-xs text-muted-foreground text-center">
           Press <kbd className="px-2 py-1 rounded bg-muted text-foreground">SPACE</kbd> or tap to jump
         </p>
       )}
 
-      {/* User info */}
       {user && profile && !gameState.isPlaying && !gameState.isGameOver && (
         <div 
           className="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-card/50 cursor-pointer hover:bg-card transition-colors"
@@ -164,7 +174,6 @@ export default function Index() {
         </div>
       )}
 
-      {/* Modals */}
       <Leaderboard
         isOpen={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}

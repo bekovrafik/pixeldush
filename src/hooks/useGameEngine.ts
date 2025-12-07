@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { GameState, Player, Obstacle, Particle } from '@/types/game';
+import { GameState, Player, Obstacle, Particle, Coin } from '@/types/game';
+import { audioManager } from '@/lib/audioManager';
 
 const GRAVITY = 0.8;
 const JUMP_FORCE = -15;
@@ -18,6 +19,7 @@ export function useGameEngine(selectedSkin: string) {
     score: 0,
     distance: 0,
     speed: INITIAL_SPEED,
+    coins: 0,
     canRevive: true,
     hasRevived: false,
   });
@@ -35,35 +37,111 @@ export function useGameEngine(selectedSkin: string) {
   });
 
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
+  const [coins, setCoins] = useState<Coin[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
   
   const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const obstacleTimerRef = useRef<number>(0);
+  const coinTimerRef = useRef<number>(0);
 
   const generateObstacle = useCallback((gameSpeed: number): Obstacle => {
-    const types: Obstacle['type'][] = ['spike', 'block'];
-    const type = types[Math.floor(Math.random() * types.length)];
+    const types: Obstacle['type'][] = ['spike', 'block', 'flying', 'double', 'moving'];
+    const weights = [30, 25, 20, 15, 10]; // Probability weights
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let random = Math.random() * totalWeight;
+    let typeIndex = 0;
     
+    for (let i = 0; i < weights.length; i++) {
+      random -= weights[i];
+      if (random <= 0) {
+        typeIndex = i;
+        break;
+      }
+    }
+    
+    const type = types[typeIndex];
     let width = 30;
     let height = 40;
+    let y = GROUND_Y - height;
+    let velocityY = 0;
+    let minY = 0;
+    let maxY = 0;
     
-    if (type === 'block') {
-      width = 40 + Math.random() * 20;
-      height = 30 + Math.random() * 30;
-    } else if (type === 'spike') {
-      width = 25;
-      height = 35;
+    switch (type) {
+      case 'spike':
+        width = 25;
+        height = 35;
+        y = GROUND_Y - height;
+        break;
+      case 'block':
+        width = 40 + Math.random() * 20;
+        height = 30 + Math.random() * 30;
+        y = GROUND_Y - height;
+        break;
+      case 'flying':
+        width = 35;
+        height = 25;
+        y = GROUND_Y - 80 - Math.random() * 60; // Floating in air
+        break;
+      case 'double':
+        width = 25;
+        height = 35;
+        y = GROUND_Y - height;
+        break;
+      case 'moving':
+        width = 30;
+        height = 30;
+        minY = GROUND_Y - 100;
+        maxY = GROUND_Y - 40;
+        y = (minY + maxY) / 2;
+        velocityY = 2;
+        break;
     }
 
     return {
       id: Math.random().toString(36).substr(2, 9),
       x: 900,
-      y: GROUND_Y - height,
+      y,
       width,
       height,
       type,
       passed: false,
+      velocityY,
+      minY,
+      maxY,
+    };
+  }, []);
+
+  const generateCoin = useCallback((): Coin => {
+    const patterns = ['low', 'mid', 'high', 'arc'];
+    const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+    
+    let y = GROUND_Y - 50;
+    
+    switch (pattern) {
+      case 'low':
+        y = GROUND_Y - 40;
+        break;
+      case 'mid':
+        y = GROUND_Y - 80;
+        break;
+      case 'high':
+        y = GROUND_Y - 120;
+        break;
+      case 'arc':
+        y = GROUND_Y - 60 - Math.random() * 80;
+        break;
+    }
+
+    return {
+      id: Math.random().toString(36).substr(2, 9),
+      x: 900,
+      y,
+      width: 20,
+      height: 20,
+      collected: false,
+      animationFrame: 0,
     };
   }, []);
 
@@ -80,6 +158,26 @@ export function useGameEngine(selectedSkin: string) {
         maxLife: 20,
         size: 3 + Math.random() * 3,
         color: '#8B7355',
+      });
+    }
+    return newParticles;
+  }, []);
+
+  const createCoinParticles = useCallback((x: number, y: number) => {
+    const newParticles: Particle[] = [];
+    const colors = ['#FFD700', '#FFA500', '#FFEC8B', '#FFE135'];
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+      newParticles.push({
+        id: Math.random().toString(36).substr(2, 9),
+        x,
+        y,
+        velocityX: Math.cos(angle) * 3,
+        velocityY: Math.sin(angle) * 3,
+        life: 20,
+        maxLife: 20,
+        size: 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
     return newParticles;
@@ -115,11 +213,22 @@ export function useGameEngine(selectedSkin: string) {
     );
   }, []);
 
+  const checkCoinCollision = useCallback((player: Player, coin: Coin): boolean => {
+    const padding = 2;
+    return (
+      player.x + padding < coin.x + coin.width &&
+      player.x + player.width - padding > coin.x &&
+      player.y + padding < coin.y + coin.height &&
+      player.y + player.height - padding > coin.y
+    );
+  }, []);
+
   const jump = useCallback(() => {
     if (!gameState.isPlaying || gameState.isPaused || gameState.isGameOver) return;
     
     setPlayer(prev => {
       if (prev.isOnGround) {
+        audioManager.playJump();
         setParticles(current => [...current, ...createJumpParticles(prev.x, prev.y)]);
         return {
           ...prev,
@@ -133,6 +242,9 @@ export function useGameEngine(selectedSkin: string) {
   }, [gameState.isPlaying, gameState.isPaused, gameState.isGameOver, createJumpParticles]);
 
   const startGame = useCallback(() => {
+    audioManager.resumeContext();
+    audioManager.startBGM();
+    
     setGameState({
       isPlaying: true,
       isPaused: false,
@@ -140,6 +252,7 @@ export function useGameEngine(selectedSkin: string) {
       score: 0,
       distance: 0,
       speed: INITIAL_SPEED,
+      coins: 0,
       canRevive: true,
       hasRevived: false,
     });
@@ -155,8 +268,10 @@ export function useGameEngine(selectedSkin: string) {
       frameTimer: 0,
     });
     setObstacles([]);
+    setCoins([]);
     setParticles([]);
     obstacleTimerRef.current = 0;
+    coinTimerRef.current = 0;
   }, []);
 
   const pauseGame = useCallback(() => {
@@ -164,12 +279,16 @@ export function useGameEngine(selectedSkin: string) {
   }, []);
 
   const endGame = useCallback(() => {
+    audioManager.playDeath();
+    audioManager.stopBGM();
     setGameState(prev => ({ ...prev, isGameOver: true, isPlaying: false }));
     setParticles(current => [...current, ...createDeathParticles(player.x, player.y)]);
   }, [player.x, player.y, createDeathParticles]);
 
   const revive = useCallback(() => {
     if (!gameState.canRevive || gameState.hasRevived) return;
+    
+    audioManager.startBGM();
     
     setGameState(prev => ({
       ...prev,
@@ -190,7 +309,6 @@ export function useGameEngine(selectedSkin: string) {
 
   const gameLoop = useCallback((timestamp: number) => {
     if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-    const deltaTime = timestamp - lastTimeRef.current;
     lastTimeRef.current = timestamp;
 
     if (gameState.isPaused || gameState.isGameOver || !gameState.isPlaying) {
@@ -210,7 +328,6 @@ export function useGameEngine(selectedSkin: string) {
         isOnGround = true;
       }
 
-      // Animation frame
       let newFrameTimer = prev.frameTimer + 1;
       let newFrameIndex = prev.frameIndex;
       if (newFrameTimer >= 6) {
@@ -235,7 +352,7 @@ export function useGameEngine(selectedSkin: string) {
       return {
         ...prev,
         distance: prev.distance + newSpeed,
-        score: Math.floor((prev.distance + newSpeed) / 10),
+        score: Math.floor((prev.distance + newSpeed) / 10) + prev.coins * 10,
         speed: newSpeed,
       };
     });
@@ -246,13 +363,50 @@ export function useGameEngine(selectedSkin: string) {
     
     if (obstacleTimerRef.current >= minInterval + Math.random() * 60) {
       obstacleTimerRef.current = 0;
-      setObstacles(prev => [...prev, generateObstacle(gameState.speed)]);
+      const newObs = generateObstacle(gameState.speed);
+      setObstacles(prev => {
+        const obstacles = [...prev, newObs];
+        // Add second obstacle for double type
+        if (newObs.type === 'double') {
+          obstacles.push({
+            ...newObs,
+            id: Math.random().toString(36).substr(2, 9),
+            x: newObs.x + 50,
+          });
+        }
+        return obstacles;
+      });
     }
 
-    // Update obstacles and check collisions
+    // Generate coins
+    coinTimerRef.current += 1;
+    if (coinTimerRef.current >= 80 + Math.random() * 40) {
+      coinTimerRef.current = 0;
+      setCoins(prev => [...prev, generateCoin()]);
+    }
+
+    // Update obstacles
     setObstacles(prev => {
       const updated = prev
-        .map(obs => ({ ...obs, x: obs.x - gameState.speed }))
+        .map(obs => {
+          let newY = obs.y;
+          let newVelocityY = obs.velocityY || 0;
+          
+          // Moving obstacle logic
+          if (obs.type === 'moving' && obs.minY !== undefined && obs.maxY !== undefined) {
+            newY += newVelocityY;
+            if (newY <= obs.minY || newY >= obs.maxY) {
+              newVelocityY = -newVelocityY;
+            }
+          }
+          
+          return { 
+            ...obs, 
+            x: obs.x - gameState.speed,
+            y: newY,
+            velocityY: newVelocityY,
+          };
+        })
         .filter(obs => obs.x > -100);
       
       // Check collision
@@ -261,6 +415,35 @@ export function useGameEngine(selectedSkin: string) {
           endGame();
           break;
         }
+      }
+      
+      return updated;
+    });
+
+    // Update coins
+    setCoins(prev => {
+      let coinsCollected = 0;
+      const newParticles: Particle[] = [];
+      
+      const updated = prev
+        .map(coin => {
+          if (!coin.collected && checkCoinCollision(player, coin)) {
+            coinsCollected++;
+            audioManager.playCoin();
+            newParticles.push(...createCoinParticles(coin.x + coin.width / 2, coin.y + coin.height / 2));
+            return { ...coin, collected: true };
+          }
+          return { 
+            ...coin, 
+            x: coin.x - gameState.speed,
+            animationFrame: (coin.animationFrame + 0.2) % 8,
+          };
+        })
+        .filter(coin => coin.x > -50 && !coin.collected);
+      
+      if (coinsCollected > 0) {
+        setGameState(gs => ({ ...gs, coins: gs.coins + coinsCollected }));
+        setParticles(p => [...p, ...newParticles]);
       }
       
       return updated;
@@ -279,7 +462,7 @@ export function useGameEngine(selectedSkin: string) {
     );
 
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, player, generateObstacle, checkCollision, endGame]);
+  }, [gameState, player, generateObstacle, generateCoin, checkCollision, checkCoinCollision, createCoinParticles, endGame]);
 
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {
@@ -297,6 +480,7 @@ export function useGameEngine(selectedSkin: string) {
     gameState,
     player,
     obstacles,
+    coins,
     particles,
     jump,
     startGame,
