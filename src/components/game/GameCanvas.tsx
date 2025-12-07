@@ -616,8 +616,14 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     
     // Arena banner at top
     const isRush = arena.isRushMode;
+    const isEndless = arena.isEndlessMode;
+    
     const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, 0);
-    if (isRush) {
+    if (isEndless) {
+      gradient.addColorStop(0, 'rgba(128, 0, 255, 0.9)');
+      gradient.addColorStop(0.5, 'rgba(255, 0, 128, 1)');
+      gradient.addColorStop(1, 'rgba(128, 0, 255, 0.9)');
+    } else if (isRush) {
       gradient.addColorStop(0, 'rgba(255, 0, 0, 0.9)');
       gradient.addColorStop(0.5, 'rgba(255, 165, 0, 1)');
       gradient.addColorStop(1, 'rgba(255, 0, 0, 0.9)');
@@ -632,43 +638,94 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '10px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(isRush ? '⚡ BOSS RUSH ⚡' : '⚔️ BOSS ARENA ⚔️', CANVAS_WIDTH / 2, 72);
     
-    // Boss queue indicator
-    const iconSize = 20;
-    const spacing = 30;
-    const startX = CANVAS_WIDTH / 2 - (ARENA_BOSS_SEQUENCE.length * spacing) / 2;
+    if (isEndless) {
+      ctx.fillText('♾️ ENDLESS MODE ♾️', CANVAS_WIDTH / 2, 72);
+    } else if (isRush) {
+      ctx.fillText('⚡ BOSS RUSH ⚡', CANVAS_WIDTH / 2, 72);
+    } else {
+      ctx.fillText('⚔️ BOSS ARENA ⚔️', CANVAS_WIDTH / 2, 72);
+    }
     
-    ARENA_BOSS_SEQUENCE.forEach((bossType, index) => {
-      const x = startX + index * spacing;
-      const y = 90;
-      const isDefeated = arena.bossesDefeated.includes(bossType);
-      const isCurrent = index === arena.currentBossIndex && !isDefeated;
+    // Endless mode HUD - Wave counter and timer
+    if (isEndless && arena.isActive) {
+      const wave = arena.endlessWave + 1;
+      const elapsedTime = (Date.now() - arena.startTime) / 1000;
+      const minutes = Math.floor(elapsedTime / 60);
+      const seconds = Math.floor(elapsedTime % 60);
       
-      ctx.globalAlpha = isDefeated ? 0.4 : 1;
-      ctx.fillStyle = isDefeated ? '#888888' : isCurrent ? '#FFD700' : '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(x, y, iconSize / 2, 0, Math.PI * 2);
-      ctx.fill();
+      // Wave counter on left
+      ctx.fillStyle = 'rgba(128, 0, 255, 0.7)';
+      ctx.fillRect(10, 90, 100, 45);
+      ctx.strokeStyle = '#FF00FF';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(10, 90, 100, 45);
       
-      if (isDefeated) {
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x - 8, y - 8);
-        ctx.lineTo(x + 8, y + 8);
-        ctx.moveTo(x + 8, y - 8);
-        ctx.lineTo(x - 8, y + 8);
-        ctx.stroke();
-      }
-      
-      // Boss type initial
-      ctx.fillStyle = isDefeated ? '#444' : '#000';
+      ctx.fillStyle = '#FFFFFF';
       ctx.font = '8px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(bossType[0].toUpperCase(), x, y);
-    });
+      ctx.fillText('WAVE', 60, 105);
+      ctx.font = '16px "Press Start 2P", monospace';
+      ctx.fillStyle = wave >= 50 ? '#FFD700' : wave >= 25 ? '#FF00FF' : wave >= 10 ? '#00FFFF' : '#FFFFFF';
+      ctx.fillText(`${wave}`, 60, 128);
+      
+      // Timer on right
+      ctx.fillStyle = 'rgba(128, 0, 255, 0.7)';
+      ctx.fillRect(CANVAS_WIDTH - 110, 90, 100, 45);
+      ctx.strokeStyle = '#FF00FF';
+      ctx.strokeRect(CANVAS_WIDTH - 110, 90, 100, 45);
+      
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('TIME', CANVAS_WIDTH - 60, 105);
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.fillText(`${minutes}:${seconds.toString().padStart(2, '0')}`, CANVAS_WIDTH - 60, 126);
+      
+      // Milestone indicator
+      const nextMilestone = wave < 10 ? 10 : wave < 25 ? 25 : wave < 50 ? 50 : null;
+      if (nextMilestone) {
+        ctx.font = '6px "Press Start 2P", monospace';
+        ctx.fillStyle = '#AAAAAA';
+        ctx.fillText(`Next milestone: Wave ${nextMilestone}`, CANVAS_WIDTH / 2, 108);
+      }
+    } else if (!isEndless) {
+      // Boss queue indicator (regular/rush mode)
+      const iconSize = 20;
+      const spacing = 30;
+      const startX = CANVAS_WIDTH / 2 - (ARENA_BOSS_SEQUENCE.length * spacing) / 2;
+      
+      ARENA_BOSS_SEQUENCE.forEach((bossType, index) => {
+        const x = startX + index * spacing;
+        const y = 90;
+        const isDefeated = arena.bossesDefeated.includes(bossType);
+        const isCurrent = index === arena.currentBossIndex && !isDefeated;
+        
+        ctx.globalAlpha = isDefeated ? 0.4 : 1;
+        ctx.fillStyle = isDefeated ? '#888888' : isCurrent ? '#FFD700' : '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(x, y, iconSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        if (isDefeated) {
+          ctx.strokeStyle = '#FF0000';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x - 8, y - 8);
+          ctx.lineTo(x + 8, y + 8);
+          ctx.moveTo(x + 8, y - 8);
+          ctx.lineTo(x - 8, y + 8);
+          ctx.stroke();
+        }
+        
+        // Boss type initial
+        ctx.fillStyle = isDefeated ? '#444' : '#000';
+        ctx.font = '8px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(bossType[0].toUpperCase(), x, y);
+      });
+    }
     
     ctx.globalAlpha = 1;
     
@@ -686,44 +743,82 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
       ctx.fillText(`${seconds}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 20);
     }
     
-    // Arena complete message
-    if (!arena.isActive && arena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
+    // Arena/Endless complete message
+    if (!arena.isActive && (arena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || arena.isEndlessMode)) {
       const hasStreak = !arena.hasDied;
       const isRush = arena.isRushMode;
-      const bonusLines = (hasStreak ? 1 : 0) + (isRush ? 1 : 0);
-      const boxHeight = 100 + bonusLines * 20;
+      const isEndless = arena.isEndlessMode;
+      const wave = arena.endlessWave;
       
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60, 300, boxHeight);
+      const bonusLines = (hasStreak ? 1 : 0) + (isRush ? 1 : 0) + (isEndless ? 1 : 0);
+      const boxHeight = isEndless ? 130 : 100 + bonusLines * 20;
       
-      ctx.strokeStyle = isRush ? '#FF4500' : hasStreak ? '#00FF00' : '#FFD700';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.fillRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 70, 300, boxHeight);
+      
+      const borderColor = isEndless ? '#FF00FF' : isRush ? '#FF4500' : hasStreak ? '#00FF00' : '#FFD700';
+      ctx.strokeStyle = borderColor;
       ctx.lineWidth = 3;
-      ctx.strokeRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60, 300, boxHeight);
+      ctx.strokeRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 70, 300, boxHeight);
       
-      ctx.fillStyle = isRush ? '#FF4500' : '#FFD700';
-      ctx.font = '14px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(isRush ? '⚡ RUSH COMPLETE! ⚡' : '🏆 ARENA COMPLETE! 🏆', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 35);
       
-      let bonusY = CANVAS_HEIGHT / 2 - 15;
-      if (isRush) {
-        ctx.fillStyle = '#FF4500';
+      if (isEndless) {
+        // Endless mode game over
+        ctx.fillStyle = '#FF00FF';
+        ctx.font = '14px "Press Start 2P", monospace';
+        ctx.fillText('♾️ ENDLESS OVER ♾️', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 45);
+        
+        // Wave reached
+        ctx.fillStyle = wave >= 50 ? '#FFD700' : wave >= 25 ? '#FF00FF' : wave >= 10 ? '#00FFFF' : '#FFFFFF';
+        ctx.font = '12px "Press Start 2P", monospace';
+        ctx.fillText(`WAVE ${wave} REACHED!`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
+        
+        // Milestone message
+        if (wave >= 50) {
+          ctx.fillStyle = '#FFD700';
+          ctx.font = '8px "Press Start 2P", monospace';
+          ctx.fillText('🏆 LEGENDARY! Cosmic Guardian!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        } else if (wave >= 25) {
+          ctx.fillStyle = '#FF00FF';
+          ctx.font = '8px "Press Start 2P", monospace';
+          ctx.fillText('⭐ EPIC! Thunder Lord!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        } else if (wave >= 10) {
+          ctx.fillStyle = '#00FFFF';
+          ctx.font = '8px "Press Start 2P", monospace';
+          ctx.fillText('🎉 Frost Queen unlocked!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        }
+        
+        ctx.fillStyle = '#FFFFFF';
         ctx.font = '10px "Press Start 2P", monospace';
-        ctx.fillText('🔥 RUSH MODE! 1.5X BONUS 🔥', CANVAS_WIDTH / 2, bonusY);
-        bonusY += 18;
-      }
-      if (hasStreak) {
-        ctx.fillStyle = '#00FF00';
+        ctx.fillText(`+${arena.totalRewards.coins} coins`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 25);
+        ctx.fillText(`+${arena.totalRewards.xp} XP`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 45);
+      } else {
+        // Regular/Rush complete
+        ctx.fillStyle = isRush ? '#FF4500' : '#FFD700';
+        ctx.font = '14px "Press Start 2P", monospace';
+        ctx.fillText(isRush ? '⚡ RUSH COMPLETE! ⚡' : '🏆 ARENA COMPLETE! 🏆', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 35);
+        
+        let bonusY = CANVAS_HEIGHT / 2 - 15;
+        if (isRush) {
+          ctx.fillStyle = '#FF4500';
+          ctx.font = '10px "Press Start 2P", monospace';
+          ctx.fillText('🔥 RUSH MODE! 1.5X BONUS 🔥', CANVAS_WIDTH / 2, bonusY);
+          bonusY += 18;
+        }
+        if (hasStreak) {
+          ctx.fillStyle = '#00FF00';
+          ctx.font = '10px "Press Start 2P", monospace';
+          ctx.fillText('⚡ PERFECT STREAK! 2X BONUS ⚡', CANVAS_WIDTH / 2, bonusY);
+          bonusY += 18;
+        }
+        
+        ctx.fillStyle = '#FFFFFF';
         ctx.font = '10px "Press Start 2P", monospace';
-        ctx.fillText('⚡ PERFECT STREAK! 2X BONUS ⚡', CANVAS_WIDTH / 2, bonusY);
-        bonusY += 18;
+        const rewardsY = bonusY + 10;
+        ctx.fillText(`+${arena.totalRewards.coins} coins`, CANVAS_WIDTH / 2, rewardsY);
+        ctx.fillText(`+${arena.totalRewards.xp} XP`, CANVAS_WIDTH / 2, rewardsY + 20);
       }
-      
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '10px "Press Start 2P", monospace';
-      const rewardsY = bonusY + 10;
-      ctx.fillText(`+${arena.totalRewards.coins} coins`, CANVAS_WIDTH / 2, rewardsY);
-      ctx.fillText(`+${arena.totalRewards.xp} XP`, CANVAS_WIDTH / 2, rewardsY + 20);
     }
     
     ctx.restore();
@@ -759,7 +854,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     drawParticles(ctx, particles);
     drawPlayer(ctx, player);
     drawUI(ctx, score, coinCount, activePowerUps, isVip);
-    if (bossArena?.isActive || (bossArena && bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length)) {
+    if (bossArena?.isActive || (bossArena && (bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || bossArena.isEndlessMode))) {
       drawBossArenaUI(ctx, bossArena);
     }
     if (bossWarning) drawBossWarning(ctx, bossWarning);
