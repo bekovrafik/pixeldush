@@ -4,6 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShoppingBag, Check, Lock, Sparkles, Zap, Coins as CoinsIcon, ArrowUp, Shield } from 'lucide-react';
 import { CharacterSkin } from '@/types/game';
 import { toast } from 'sonner';
+import { SkinPreview } from './SkinPreview';
 
 interface ShopProps {
   isOpen: boolean;
@@ -97,6 +98,11 @@ export function Shop({
     );
   };
 
+  // Calculate collection progress
+  const totalSkins = allSkins.length;
+  const ownedCount = ownedSkinIds.length;
+  const progressPercent = totalSkins > 0 ? Math.round((ownedCount / totalSkins) * 100) : 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] sm:max-w-md bg-card border-primary/30 p-4 sm:p-6 max-h-[85vh]">
@@ -114,7 +120,24 @@ export function Shop({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="h-[50vh] sm:h-[400px] pr-2 sm:pr-4">
+        {/* Collection Progress Tracker */}
+        <div className="mb-3 p-2 sm:p-3 rounded-lg bg-muted/30 border border-border/50">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-pixel text-[9px] sm:text-[10px] text-muted-foreground">COLLECTION</span>
+            <span className="font-pixel text-[10px] sm:text-xs text-primary">{ownedCount}/{totalSkins}</span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <p className="text-[8px] sm:text-[9px] text-muted-foreground mt-1 text-center">
+            {progressPercent === 100 ? '🎉 Collection Complete!' : `${progressPercent}% Complete`}
+          </p>
+        </div>
+
+        <ScrollArea className="h-[45vh] sm:h-[350px] pr-2 sm:pr-4">
           {loading ? (
             <div className="flex items-center justify-center h-32">
               <div className="font-pixel text-xs text-muted-foreground animate-pulse">
@@ -140,34 +163,12 @@ export function Shop({
                           : 'border-border/50 bg-muted/30'
                     }`}
                   >
-                    {/* Character preview */}
-                    <div 
-                      className="w-10 h-12 sm:w-12 sm:h-14 rounded flex-shrink-0 relative"
-                      style={{
-                        backgroundColor: colors.body,
-                        boxShadow: isSelected ? `0 0 20px ${colors.body}40` : undefined,
-                      }}
-                    >
-                      <div 
-                        className="absolute top-1 left-1 right-1 h-3 sm:h-4 rounded-t"
-                        style={{ backgroundColor: colors.body }}
-                      />
-                      <div 
-                        className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 w-2 sm:w-3 h-1.5 sm:h-2"
-                        style={{ backgroundColor: colors.accent }}
-                      />
-                      <div 
-                        className="absolute bottom-0 left-1 w-2 sm:w-3 h-2 sm:h-3"
-                        style={{ backgroundColor: colors.accent }}
-                      />
-                      <div 
-                        className="absolute bottom-0 right-1 w-2 sm:w-3 h-2 sm:h-3"
-                        style={{ backgroundColor: colors.accent }}
-                      />
-                      {skin.is_premium && (
-                        <Sparkles className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 text-accent" />
-                      )}
-                    </div>
+                    {/* Character preview with animation */}
+                    <SkinPreview 
+                      skin={skin} 
+                      colors={colors} 
+                      isSelected={isSelected} 
+                    />
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
