@@ -264,3 +264,40 @@ export const DAILY_REWARDS = [
   { day: 6, coins: 100 },
   { day: 7, coins: 200 },
 ];
+
+// VIP Skin Effects Configuration
+export interface VipSkinEffect {
+  skinId: string;
+  trailColors: string[];
+  glowColor: string;
+  particleType: 'sparkle' | 'fire' | 'shadow';
+  trailLength: number;
+  particleCount: number;
+}
+
+export const VIP_SKIN_EFFECTS: Record<string, VipSkinEffect> = {
+  diamond: {
+    skinId: 'diamond',
+    trailColors: ['#00BFFF', '#87CEEB', '#E0FFFF', '#FFFFFF'],
+    glowColor: 'rgba(0, 191, 255, 0.4)',
+    particleType: 'sparkle',
+    trailLength: 5,
+    particleCount: 3,
+  },
+  phoenix: {
+    skinId: 'phoenix',
+    trailColors: ['#FF4500', '#FF6600', '#FF8800', '#FFAA00'],
+    glowColor: 'rgba(255, 69, 0, 0.4)',
+    particleType: 'fire',
+    trailLength: 6,
+    particleCount: 4,
+  },
+  shadow_king: {
+    skinId: 'shadow_king',
+    trailColors: ['#4B0082', '#800080', '#9400D3', '#1a1a1a'],
+    glowColor: 'rgba(75, 0, 130, 0.5)',
+    particleType: 'shadow',
+    trailLength: 4,
+    particleCount: 3,
+  },
+};

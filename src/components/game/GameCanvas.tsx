@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Player, Obstacle, Particle, Coin, PowerUp, WorldTheme, WORLD_CONFIGS, ActivePowerUp } from '@/types/game';
-import { Boss, BOSS_CONFIGS } from '@/types/boss';
+import { Player, Obstacle, Particle, Coin, PowerUp, WorldTheme, WORLD_CONFIGS, ActivePowerUp, VIP_SKIN_EFFECTS } from '@/types/game';
+import { Boss, BOSS_CONFIGS, BossArenaState, ARENA_BOSS_SEQUENCE } from '@/types/boss';
 
 interface GameCanvasProps {
   player: Player;
@@ -10,6 +10,7 @@ interface GameCanvasProps {
   particles: Particle[];
   boss: Boss | null;
   bossWarning: { name: string; countdown: number } | null;
+  bossArena: BossArenaState | null;
   score: number;
   coinCount: number;
   speed: number;
@@ -32,12 +33,16 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   ninja: { body: '#2C3E50', accent: '#E74C3C' },
   zombie: { body: '#7CB342', accent: '#558B2F' },
   astronaut: { body: '#ECF0F1', accent: '#3498DB' },
+  diamond: { body: '#00BFFF', accent: '#87CEEB' },
+  phoenix: { body: '#FF4500', accent: '#FFD700' },
+  shadow_king: { body: '#4B0082', accent: '#800080' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, isVip = false, onTap }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, isVip = false, onTap }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
+  const trailPositionsRef = useRef<{x: number, y: number}[]>([]);
 
   const worldConfig = WORLD_CONFIGS[world];
 
@@ -126,12 +131,80 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     ctx.stroke();
   }, [worldConfig]);
 
+  const drawVipSkinEffects = useCallback((ctx: CanvasRenderingContext2D, p: Player) => {
+    const effect = VIP_SKIN_EFFECTS[selectedSkin];
+    if (!effect) return;
+
+    ctx.save();
+
+    // Draw trailing particles
+    const trail = trailPositionsRef.current;
+    for (let i = 0; i < trail.length; i++) {
+      const pos = trail[i];
+      const alpha = (i + 1) / trail.length * 0.6;
+      const size = 6 + (i / trail.length) * 8;
+      
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = effect.trailColors[i % effect.trailColors.length];
+      
+      if (effect.particleType === 'sparkle') {
+        // Diamond sparkles
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y - size);
+        ctx.lineTo(pos.x + size, pos.y);
+        ctx.lineTo(pos.x, pos.y + size);
+        ctx.lineTo(pos.x - size, pos.y);
+        ctx.closePath();
+        ctx.fill();
+      } else if (effect.particleType === 'fire') {
+        // Fire particles
+        const flicker = Math.sin(Date.now() / 50 + i) * 2;
+        ctx.beginPath();
+        ctx.arc(pos.x + flicker, pos.y, size * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (effect.particleType === 'shadow') {
+        // Shadow mist
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, size * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Draw glow around player
+    ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 200) * 0.15;
+    ctx.fillStyle = effect.glowColor;
+    ctx.beginPath();
+    ctx.arc(p.x + p.width / 2, p.y + p.height / 2, p.width * 1.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw floating particles around player
+    for (let i = 0; i < effect.particleCount; i++) {
+      const angle = (Date.now() / 500 + i * (Math.PI * 2 / effect.particleCount)) % (Math.PI * 2);
+      const radius = p.width * 0.8 + Math.sin(Date.now() / 300 + i) * 5;
+      const px = p.x + p.width / 2 + Math.cos(angle) * radius;
+      const py = p.y + p.height / 2 + Math.sin(angle) * radius * 0.6;
+      
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = effect.trailColors[i % effect.trailColors.length];
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }, [selectedSkin]);
+
   const drawPlayer = useCallback((ctx: CanvasRenderingContext2D, p: Player) => {
     const colors = SKIN_COLORS[selectedSkin] || SKIN_COLORS.default;
     const bounce = p.isOnGround ? Math.sin(Date.now() / 100) * 2 : 0;
     const y = p.y + bounce;
 
     ctx.save();
+    
+    // Draw VIP skin effects first (behind player)
+    if (VIP_SKIN_EFFECTS[selectedSkin]) {
+      drawVipSkinEffects(ctx, { ...p, y });
+    }
     
     // Shield effect
     if (p.hasShield) {
@@ -171,7 +244,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
       ctx.globalAlpha = 1;
     }
     ctx.restore();
-  }, [selectedSkin, speed]);
+  }, [selectedSkin, speed, drawVipSkinEffects]);
 
   const drawObstacle = useCallback((ctx: CanvasRenderingContext2D, obs: Obstacle) => {
     ctx.save();
@@ -496,6 +569,97 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     ctx.restore();
   }, []);
 
+  const drawBossArenaUI = useCallback((ctx: CanvasRenderingContext2D, arena: BossArenaState) => {
+    ctx.save();
+    
+    // Arena banner at top
+    const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, 0);
+    gradient.addColorStop(0, 'rgba(139, 0, 0, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.9)');
+    gradient.addColorStop(1, 'rgba(139, 0, 0, 0.8)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 55, CANVAS_WIDTH, 25);
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚔️ BOSS ARENA ⚔️', CANVAS_WIDTH / 2, 72);
+    
+    // Boss queue indicator
+    const iconSize = 20;
+    const spacing = 30;
+    const startX = CANVAS_WIDTH / 2 - (ARENA_BOSS_SEQUENCE.length * spacing) / 2;
+    
+    ARENA_BOSS_SEQUENCE.forEach((bossType, index) => {
+      const x = startX + index * spacing;
+      const y = 90;
+      const isDefeated = arena.bossesDefeated.includes(bossType);
+      const isCurrent = index === arena.currentBossIndex && !isDefeated;
+      
+      ctx.globalAlpha = isDefeated ? 0.4 : 1;
+      ctx.fillStyle = isDefeated ? '#888888' : isCurrent ? '#FFD700' : '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(x, y, iconSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      if (isDefeated) {
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - 8, y - 8);
+        ctx.lineTo(x + 8, y + 8);
+        ctx.moveTo(x + 8, y - 8);
+        ctx.lineTo(x - 8, y + 8);
+        ctx.stroke();
+      }
+      
+      // Boss type initial
+      ctx.fillStyle = isDefeated ? '#444' : '#000';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(bossType[0].toUpperCase(), x, y);
+    });
+    
+    ctx.globalAlpha = 1;
+    
+    // Break timer between bosses
+    if (arena.breakTimer > 0) {
+      const seconds = Math.ceil(arena.breakTimer / 60);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(CANVAS_WIDTH / 2 - 100, CANVAS_HEIGHT / 2 - 30, 200, 60);
+      
+      ctx.fillStyle = '#FFD700';
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('NEXT BOSS IN', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 5);
+      ctx.font = '20px "Press Start 2P", monospace';
+      ctx.fillText(`${seconds}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 20);
+    }
+    
+    // Arena complete message
+    if (!arena.isActive && arena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 50, 300, 100);
+      
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 50, 300, 100);
+      
+      ctx.fillStyle = '#FFD700';
+      ctx.font = '14px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏆 ARENA COMPLETE! 🏆', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
+      
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '10px "Press Start 2P", monospace';
+      ctx.fillText(`+${arena.totalRewards.coins} coins`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
+      ctx.fillText(`+${arena.totalRewards.xp} XP`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 25);
+    }
+    
+    ctx.restore();
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -505,6 +669,15 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     if (isPlaying) {
       bgOffsetRef.current += speed;
       groundOffsetRef.current = (groundOffsetRef.current + speed) % 20;
+      
+      // Update VIP skin trail positions
+      if (VIP_SKIN_EFFECTS[selectedSkin]) {
+        const effect = VIP_SKIN_EFFECTS[selectedSkin];
+        trailPositionsRef.current.unshift({ x: player.x, y: player.y + player.height / 2 });
+        if (trailPositionsRef.current.length > effect.trailLength) {
+          trailPositionsRef.current = trailPositionsRef.current.slice(0, effect.trailLength);
+        }
+      }
     }
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -517,8 +690,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     drawParticles(ctx, particles);
     drawPlayer(ctx, player);
     drawUI(ctx, score, coinCount, activePowerUps, isVip);
+    if (bossArena?.isActive || (bossArena && bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length)) {
+      drawBossArenaUI(ctx, bossArena);
+    }
     if (bossWarning) drawBossWarning(ctx, bossWarning);
-  }, [player, obstacles, coins, powerUps, particles, boss, bossWarning, score, coinCount, speed, isPlaying, activePowerUps, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI, drawBossWarning]);
+  }, [player, obstacles, coins, powerUps, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawBoss, drawParticles, drawUI, drawBossWarning, drawBossArenaUI]);
 
   return (
     <canvas
