@@ -23,6 +23,7 @@ interface GameCanvasProps {
   activeWeapon: WeaponType | null;
   weaponAmmo: number;
   comboCount: number;
+  hasDoubleJumped: boolean;
   isVip?: boolean;
   onTap: () => void;
 }
@@ -46,11 +47,12 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, isVip = false, onTap }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
   const trailPositionsRef = useRef<{x: number, y: number}[]>([]);
+  const doubleJumpTrailRef = useRef<{x: number, y: number, alpha: number, size: number}[]>([]);
 
   const worldConfig = WORLD_CONFIGS[world];
 
@@ -449,6 +451,51 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
     });
     ctx.globalAlpha = 1;
+  }, []);
+
+  const drawDoubleJumpTrail = useCallback((ctx: CanvasRenderingContext2D, p: Player) => {
+    const trail = doubleJumpTrailRef.current;
+    
+    // Draw trail particles
+    trail.forEach((particle, i) => {
+      ctx.save();
+      ctx.globalAlpha = particle.alpha;
+      
+      // Create gradient for each trail particle
+      const gradient = ctx.createRadialGradient(
+        particle.x, particle.y, 0,
+        particle.x, particle.y, particle.size
+      );
+      gradient.addColorStop(0, '#00FFFF');
+      gradient.addColorStop(0.5, '#00BFFF');
+      gradient.addColorStop(1, 'transparent');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add sparkle effect
+      if (i % 2 === 0) {
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = particle.alpha * 0.8;
+        const sparkleSize = particle.size * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(particle.x - sparkleSize, particle.y);
+        ctx.lineTo(particle.x + sparkleSize, particle.y);
+        ctx.moveTo(particle.x, particle.y - sparkleSize);
+        ctx.lineTo(particle.x, particle.y + sparkleSize);
+        ctx.stroke();
+      }
+      
+      ctx.restore();
+    });
+    
+    // Update trail - fade out and remove old particles
+    doubleJumpTrailRef.current = trail
+      .map(p => ({ ...p, alpha: p.alpha - 0.03, size: p.size * 0.95 }))
+      .filter(p => p.alpha > 0);
   }, []);
 
   const drawBoss = useCallback((ctx: CanvasRenderingContext2D, b: Boss) => {
@@ -890,6 +937,26 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
+  // Track double jump for trail effect
+  const prevDoubleJumpedRef = useRef(false);
+  
+  useEffect(() => {
+    // Trigger double jump trail when hasDoubleJumped changes from false to true
+    if (hasDoubleJumped && !prevDoubleJumpedRef.current) {
+      // Add burst of trail particles
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 * i) / 8;
+        doubleJumpTrailRef.current.push({
+          x: player.x + player.width / 2 + Math.cos(angle) * 15,
+          y: player.y + player.height / 2 + Math.sin(angle) * 15,
+          alpha: 1,
+          size: 12 + Math.random() * 8
+        });
+      }
+    }
+    prevDoubleJumpedRef.current = hasDoubleJumped;
+  }, [hasDoubleJumped, player.x, player.y, player.width, player.height]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -908,6 +975,16 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
           trailPositionsRef.current = trailPositionsRef.current.slice(0, effect.trailLength);
         }
       }
+      
+      // Add continuous trail for double jump
+      if (hasDoubleJumped && !player.isOnGround) {
+        doubleJumpTrailRef.current.push({
+          x: player.x + player.width / 2 + (Math.random() - 0.5) * 10,
+          y: player.y + player.height / 2 + (Math.random() - 0.5) * 10,
+          alpha: 0.8,
+          size: 6 + Math.random() * 4
+        });
+      }
     }
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -920,6 +997,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     playerProjectiles.forEach(proj => drawPlayerProjectile(ctx, proj));
     if (boss) drawBoss(ctx, boss);
     drawParticles(ctx, particles);
+    drawDoubleJumpTrail(ctx, player);
     drawPlayer(ctx, player);
     drawUI(ctx, score, coinCount, activePowerUps, isVip);
     drawComboIndicator(ctx, comboCount, player.y);
@@ -927,7 +1005,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       drawBossArenaUI(ctx, bossArena);
     }
     if (bossWarning) drawBossWarning(ctx, bossWarning);
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawUI, drawComboIndicator, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossWarning, drawBossArenaUI]);
 
   return (
     <canvas

@@ -20,6 +20,8 @@ import { BossCollectionModal } from '@/components/game/BossCollectionModal';
 import { VipModal } from '@/components/game/VipModal';
 import { BossRushLeaderboardModal } from '@/components/game/BossRushLeaderboardModal';
 import { BossRushChallengesModal } from '@/components/game/BossRushChallengesModal';
+import { MobileControls } from '@/components/game/MobileControls';
+import { WeaponHUD } from '@/components/game/WeaponHUD';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
@@ -37,6 +39,7 @@ import { useVipSubscription } from '@/hooks/useVipSubscription';
 import { useVipDailyBonus } from '@/hooks/useVipDailyBonus';
 import { useVipUsers } from '@/hooks/useVipUsers';
 import { useVipStats } from '@/hooks/useVipStats';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
@@ -325,19 +328,63 @@ export default function Index() {
   const highScore = profile?.high_score || localHighScore;
   const totalDistance = profile?.total_distance || 0;
   const isMuted = isSfxMuted && isMusicMuted;
+  const isMobile = useIsMobile();
+  
+  // Detect if playing on mobile in portrait orientation
+  const [isPortrait, setIsPortrait] = useState(false);
+  const [showRotateOverlay, setShowRotateOverlay] = useState(false);
+  
+  useEffect(() => {
+    const checkOrientation = () => {
+      const isPortraitMode = window.innerHeight > window.innerWidth;
+      setIsPortrait(isPortraitMode);
+      // Show rotate overlay only when playing on mobile in portrait
+      setShowRotateOverlay(isMobile && isPortraitMode && gameState.isPlaying);
+    };
+    
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, [isMobile, gameState.isPlaying]);
+
+  // Show attack button when boss is active
+  const showAttackButton = !!(boss || (bossArena?.isActive && bossArena.bossesDefeated.length >= 0));
+
+  // Landscape fullscreen mode when playing on mobile
+  const gameModeClasses = isMobile && gameState.isPlaying && !isPortrait 
+    ? 'game-landscape-mode' 
+    : 'min-h-[100dvh] bg-background flex flex-col items-center justify-center p-2 sm:p-4 scanlines overflow-hidden';
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-2 sm:p-4 scanlines overflow-hidden">
+    <div className={gameModeClasses}>
+      {/* Rotate device overlay for portrait mode */}
+      {showRotateOverlay && (
+        <div className="rotate-device-overlay">
+          <div className="phone-icon">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-6 h-1 rounded bg-primary/30" />
+          </div>
+          <h2 className="font-pixel text-lg text-primary mt-6 neon-glow">ROTATE DEVICE</h2>
+          <p className="text-muted-foreground text-sm mt-2">Please rotate your phone to landscape mode for the best gaming experience</p>
+        </div>
+      )}
+      
       {showTutorial && (
         <TutorialOverlay onComplete={handleTutorialComplete} onSkip={handleTutorialSkip} />
       )}
 
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-48 sm:w-96 h-48 sm:h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-48 sm:w-96 h-48 sm:h-96 bg-secondary/5 rounded-full blur-3xl" />
-      </div>
+      {!gameState.isPlaying && (
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-48 sm:w-96 h-48 sm:h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-48 sm:w-96 h-48 sm:h-96 bg-secondary/5 rounded-full blur-3xl" />
+        </div>
+      )}
 
-      <div className="relative w-full max-w-4xl flex-1 flex flex-col justify-center">
+      <div className={`relative w-full ${isMobile && gameState.isPlaying && !isPortrait ? 'h-full game-canvas-wrapper' : 'max-w-4xl flex-1 flex flex-col justify-center'}`}>
         <GameCanvas
           player={player}
           obstacles={obstacles}
@@ -359,6 +406,7 @@ export default function Index() {
           activeWeapon={gameState.activeWeapon}
           weaponAmmo={gameState.weaponAmmo}
           comboCount={gameState.comboCount}
+          hasDoubleJumped={player.hasDoubleJumped}
           isVip={isVip}
           onTap={handleTap}
         />
@@ -399,6 +447,28 @@ export default function Index() {
           onOpenBossRushChallenges={() => { refetchRushChallenges(); setShowBossRushChallenges(true); }}
         />
       </div>
+
+      {/* Mobile Controls - Only show when playing on mobile */}
+      {isMobile && gameState.isPlaying && !gameState.isPaused && !isPortrait && (
+        <MobileControls
+          onJump={jump}
+          onAttack={attack}
+          showAttackButton={showAttackButton}
+          doubleJumpAvailable={player.doubleJumpAvailable}
+          hasDoubleJumped={player.hasDoubleJumped}
+          activeWeapon={gameState.activeWeapon}
+          weaponAmmo={gameState.weaponAmmo}
+        />
+      )}
+
+      {/* Weapon HUD - Show during boss fights */}
+      {gameState.isPlaying && !gameState.isPaused && showAttackButton && (
+        <WeaponHUD
+          activeWeapon={gameState.activeWeapon}
+          weaponAmmo={gameState.weaponAmmo}
+          showAttackButton={showAttackButton}
+        />
+      )}
 
       {!gameState.isPlaying && !gameState.isGameOver && (
         <p className="mt-2 sm:mt-4 text-[10px] sm:text-xs text-muted-foreground text-center">
