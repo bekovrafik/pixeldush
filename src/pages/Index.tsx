@@ -15,6 +15,7 @@ import { IAPShop } from '@/components/game/IAPShop';
 import { CoinStoreModal } from '@/components/game/CoinStoreModal';
 import { DailyChallengesModal } from '@/components/game/DailyChallengesModal';
 import { SpinWheelModal } from '@/components/game/SpinWheelModal';
+import { BattlePassModal } from '@/components/game/BattlePassModal';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,6 +25,7 @@ import { useAchievements } from '@/hooks/useAchievements';
 import { useDailyRewards } from '@/hooks/useDailyRewards';
 import { useFriends } from '@/hooks/useFriends';
 import { useDailyChallenges } from '@/hooks/useDailyChallenges';
+import { useBattlePass } from '@/hooks/useBattlePass';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { WorldTheme } from '@/types/game';
@@ -45,6 +47,7 @@ export default function Index() {
   const [showCoinStore, setShowCoinStore] = useState(false);
   const [showDailyChallenges, setShowDailyChallenges] = useState(false);
   const [showSpinWheel, setShowSpinWheel] = useState(false);
+  const [showBattlePass, setShowBattlePass] = useState(false);
   const [powerupsCollectedThisRun, setPowerupsCollectedThisRun] = useState(0);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
@@ -60,6 +63,7 @@ export default function Index() {
   const { currentStreak, canClaim, lastClaimDay, claimReward } = useDailyRewards(profile?.id || null);
   const { friends, pendingRequests, loading: friendsLoading, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, refreshFriends } = useFriends(profile?.id || null);
   const { userProgress: challengeProgress, loading: challengesLoading, updateProgress: updateChallengeProgress, claimReward: claimChallengeReward, refetch: refetchChallenges } = useDailyChallenges(profile?.id || null);
+  const { season, tiers, userProgress: battlePassProgress, loading: battlePassLoading, addXP, claimReward: claimBattlePassReward, upgradeToPremium, getSeasonTimeRemaining, refetch: refetchBattlePass } = useBattlePass(profile?.id || null);
 
   // Get skin abilities for game engine
   const selectedSkinData = getSelectedSkinData();
@@ -262,6 +266,7 @@ export default function Index() {
           onOpenCoinStore={() => setShowCoinStore(true)}
           onOpenDailyChallenges={() => setShowDailyChallenges(true)}
           onOpenSpinWheel={() => setShowSpinWheel(true)}
+          onOpenBattlePass={() => setShowBattlePass(true)}
         />
       </div>
 
@@ -361,6 +366,20 @@ export default function Index() {
         currentCoins={profile?.coins || 0}
         onSpinComplete={refreshProfile}
         onOpenAuth={() => { setShowSpinWheel(false); setShowAuth(true); }}
+      />
+      <BattlePassModal
+        isOpen={showBattlePass}
+        onClose={() => setShowBattlePass(false)}
+        season={season}
+        tiers={tiers}
+        userProgress={battlePassProgress}
+        loading={battlePassLoading}
+        isLoggedIn={!!user}
+        timeRemaining={getSeasonTimeRemaining()}
+        onClaimReward={claimBattlePassReward}
+        onUpgradeToPremium={upgradeToPremium}
+        onOpenAuth={() => { setShowBattlePass(false); setShowAuth(true); }}
+        onPurchaseComplete={refreshProfile}
       />
     </div>
   );
