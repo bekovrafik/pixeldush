@@ -1,1 +1,10 @@
 project_id = "sdqglyrirchmnpxoyayb"
+
+[functions.create-vip-checkout]
+verify_jwt = false
+
+[functions.check-vip-subscription]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false

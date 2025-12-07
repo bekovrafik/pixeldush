@@ -31,6 +31,9 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   astronaut: { body: '#ECF0F1', accent: '#3498DB' },
   wizard: { body: '#9B59B6', accent: '#F1C40F' },
   golden: { body: '#F1C40F', accent: '#E67E22' },
+  diamond: { body: '#B9F2FF', accent: '#00CED1' },
+  phoenix: { body: '#FF4500', accent: '#FFD700' },
+  shadow_king: { body: '#1A1A2E', accent: '#9933FF' },
 };
 
 const SKIN_BENEFITS: Record<string, string[]> = {
@@ -42,6 +45,9 @@ const SKIN_BENEFITS: Record<string, string[]> = {
   astronaut: ['Space-grade protection', 'Zero-gravity jumps', 'Cosmic trails'],
   wizard: ['Magical enhancements', 'Mystical aura', 'Spell effects'],
   golden: ['Premium collector item', 'Maximum coin bonus', 'Shimmering effects'],
+  diamond: ['VIP Exclusive', 'Maximum stat bonuses', 'Dazzling diamond effects'],
+  phoenix: ['VIP Exclusive', 'Rise from ashes', 'Fiery trail effects'],
+  shadow_king: ['VIP Exclusive', 'Ultimate stealth', 'Dark shadow aura'],
 };
 
 export function Shop({ 
