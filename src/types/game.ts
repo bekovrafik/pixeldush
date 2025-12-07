@@ -139,6 +139,16 @@ export interface Profile {
   current_world: WorldTheme;
   login_streak: number;
   last_daily_claim: string | null;
+  tutorial_completed: boolean;
+}
+
+export interface Friendship {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  updated_at: string;
 }
 
 export const WORLD_CONFIGS: Record<WorldTheme, WorldConfig> = {

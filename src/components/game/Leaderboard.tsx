@@ -1,8 +1,19 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trophy, Medal, Award } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Trophy, Medal, Award, Users, Globe } from 'lucide-react';
 import { LeaderboardEntry } from '@/types/game';
 import { formatDistanceToNow } from 'date-fns';
+
+interface FriendWithProfile {
+  id: string;
+  friendId: string;
+  username: string;
+  high_score: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  isRequester: boolean;
+}
 
 interface LeaderboardProps {
   isOpen: boolean;
@@ -10,9 +21,22 @@ interface LeaderboardProps {
   entries: LeaderboardEntry[];
   loading: boolean;
   currentProfileId?: string;
+  friends?: FriendWithProfile[];
 }
 
-export function Leaderboard({ isOpen, onClose, entries, loading, currentProfileId }: LeaderboardProps) {
+export function Leaderboard({ isOpen, onClose, entries, loading, currentProfileId, friends = [] }: LeaderboardProps) {
+  const [showFriendsOnly, setShowFriendsOnly] = useState(false);
+
+  const friendIds = new Set(friends.map(f => f.friendId));
+
+  const filteredEntries = showFriendsOnly
+    ? entries.filter(entry => {
+        // Find if this entry belongs to a friend by matching username
+        const friend = friends.find(f => f.username === entry.profiles?.username);
+        return friend || entry.profiles?.username === currentProfileId;
+      })
+    : entries;
+
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
@@ -49,6 +73,29 @@ export function Leaderboard({ isOpen, onClose, entries, loading, currentProfileI
           </DialogTitle>
         </DialogHeader>
 
+        {friends.length > 0 && (
+          <div className="flex gap-2 mb-2">
+            <Button
+              variant={showFriendsOnly ? 'outline' : 'default'}
+              size="sm"
+              onClick={() => setShowFriendsOnly(false)}
+              className={`flex-1 text-xs ${!showFriendsOnly ? 'game-button' : 'border-primary/50'}`}
+            >
+              <Globe className="w-3 h-3 mr-1" />
+              GLOBAL
+            </Button>
+            <Button
+              variant={showFriendsOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowFriendsOnly(true)}
+              className={`flex-1 text-xs ${showFriendsOnly ? 'game-button' : 'border-primary/50'}`}
+            >
+              <Users className="w-3 h-3 mr-1" />
+              FRIENDS
+            </Button>
+          </div>
+        )}
+
         <ScrollArea className="h-[400px] pr-4">
           {loading ? (
             <div className="flex items-center justify-center h-32">
@@ -56,19 +103,19 @@ export function Leaderboard({ isOpen, onClose, entries, loading, currentProfileI
                 LOADING...
               </div>
             </div>
-          ) : entries.length === 0 ? (
+          ) : filteredEntries.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center">
               <Trophy className="w-8 h-8 text-muted-foreground mb-2" />
               <p className="font-pixel text-xs text-muted-foreground">
-                NO SCORES YET
+                {showFriendsOnly ? 'NO FRIEND SCORES YET' : 'NO SCORES YET'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Be the first to set a high score!
+                {showFriendsOnly ? 'Add friends to see their scores!' : 'Be the first to set a high score!'}
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {entries.map((entry, index) => (
+              {filteredEntries.map((entry, index) => (
                 <div
                   key={entry.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border ${getRankBg(index + 1)} ${
