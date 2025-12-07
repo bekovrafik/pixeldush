@@ -36,6 +36,9 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   diamond: { body: '#00BFFF', accent: '#87CEEB' },
   phoenix: { body: '#FF4500', accent: '#FFD700' },
   shadow_king: { body: '#4B0082', accent: '#800080' },
+  frost_queen: { body: '#ADD8E6', accent: '#87CEEB' },
+  thunder_lord: { body: '#FFD700', accent: '#87CEEB' },
+  cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
 export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, isVip = false, onTap }: GameCanvasProps) {
@@ -166,6 +169,45 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
         // Shadow mist
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, size * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (effect.particleType === 'ice') {
+        // Ice crystals - hexagonal shape
+        ctx.beginPath();
+        for (let j = 0; j < 6; j++) {
+          const angle = (Math.PI / 3) * j + Date.now() / 2000;
+          const px = pos.x + Math.cos(angle) * size;
+          const py = pos.y + Math.sin(angle) * size;
+          if (j === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (effect.particleType === 'lightning') {
+        // Lightning bolts
+        ctx.strokeStyle = effect.trailColors[i % effect.trailColors.length];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pos.x - size, pos.y - size);
+        ctx.lineTo(pos.x + size * 0.3, pos.y);
+        ctx.lineTo(pos.x - size * 0.3, pos.y);
+        ctx.lineTo(pos.x + size, pos.y + size);
+        ctx.stroke();
+      } else if (effect.particleType === 'cosmic') {
+        // Cosmic stars with rotation
+        const starAngle = Date.now() / 500 + i;
+        ctx.beginPath();
+        for (let j = 0; j < 5; j++) {
+          const outerAngle = starAngle + (j * Math.PI * 2) / 5;
+          const innerAngle = outerAngle + Math.PI / 5;
+          const outerX = pos.x + Math.cos(outerAngle) * size;
+          const outerY = pos.y + Math.sin(outerAngle) * size;
+          const innerX = pos.x + Math.cos(innerAngle) * (size * 0.4);
+          const innerY = pos.y + Math.sin(innerAngle) * (size * 0.4);
+          if (j === 0) ctx.moveTo(outerX, outerY);
+          else ctx.lineTo(outerX, outerY);
+          ctx.lineTo(innerX, innerY);
+        }
+        ctx.closePath();
         ctx.fill();
       }
     }
@@ -639,22 +681,32 @@ export function GameCanvas({ player, obstacles, coins, powerUps, particles, boss
     
     // Arena complete message
     if (!arena.isActive && arena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.fillRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 50, 300, 100);
+      const hasStreak = !arena.hasDied;
+      const boxHeight = hasStreak ? 130 : 100;
       
-      ctx.strokeStyle = '#FFD700';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60, 300, boxHeight);
+      
+      ctx.strokeStyle = hasStreak ? '#00FF00' : '#FFD700';
       ctx.lineWidth = 3;
-      ctx.strokeRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 50, 300, 100);
+      ctx.strokeRect(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60, 300, boxHeight);
       
       ctx.fillStyle = '#FFD700';
       ctx.font = '14px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('🏆 ARENA COMPLETE! 🏆', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
+      ctx.fillText('🏆 ARENA COMPLETE! 🏆', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 35);
+      
+      if (hasStreak) {
+        ctx.fillStyle = '#00FF00';
+        ctx.font = '10px "Press Start 2P", monospace';
+        ctx.fillText('⚡ PERFECT STREAK! 2X BONUS ⚡', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 15);
+      }
       
       ctx.fillStyle = '#FFFFFF';
       ctx.font = '10px "Press Start 2P", monospace';
-      ctx.fillText(`+${arena.totalRewards.coins} coins`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
-      ctx.fillText(`+${arena.totalRewards.xp} XP`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 25);
+      const rewardsY = hasStreak ? CANVAS_HEIGHT / 2 + 10 : CANVAS_HEIGHT / 2 + 5;
+      ctx.fillText(`+${arena.totalRewards.coins} coins`, CANVAS_WIDTH / 2, rewardsY);
+      ctx.fillText(`+${arena.totalRewards.xp} XP`, CANVAS_WIDTH / 2, rewardsY + 20);
     }
     
     ctx.restore();

@@ -486,7 +486,7 @@ export default function Index() {
         currentTier={getCurrentTierInfo()}
         nextTier={getNextTierInfo()}
         monthsUntilNextTier={getMonthsUntilNextTier()}
-        vipSkins={allSkins.filter(s => ['diamond', 'phoenix', 'shadow_king'].includes(s.id))}
+        vipSkins={allSkins.filter(s => ['diamond', 'phoenix', 'shadow_king', 'frost_queen', 'thunder_lord', 'cosmic_guardian'].includes(s.id))}
         ownedSkinIds={ownedSkinIds}
         selectedSkin={selectedSkin}
         onSelectSkin={selectSkin}
