@@ -1,5 +1,6 @@
 import { Purchases, LOG_LEVEL, PurchasesPackage, CustomerInfo, PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface CoinPack {
   id: string;
@@ -204,13 +205,15 @@ class PurchaseManager {
     }
   }
 
-  async purchaseProduct(productId: string): Promise<{ success: boolean; error?: string }> {
+  // Purchase product - routes to RevenueCat (native) or Stripe (web)
+  async purchaseProduct(productId: string): Promise<{ success: boolean; error?: string; url?: string }> {
+    // Web: Use Stripe checkout
     if (!Capacitor.isNativePlatform()) {
-      // Simulate purchase for web/testing
-      console.log('[PurchaseManager] Simulating purchase for:', productId);
-      return { success: true };
+      console.log('[PurchaseManager] Using Stripe checkout for web:', productId);
+      return this.startStripeCheckout(productId);
     }
 
+    // Native: Use RevenueCat
     if (!this.initialized) {
       return { success: false, error: 'Store not initialized' };
     }
@@ -249,10 +252,35 @@ class PurchaseManager {
     }
   }
 
+  // Stripe checkout for web
+  private async startStripeCheckout(productId: string): Promise<{ success: boolean; error?: string; url?: string }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { productId },
+      });
+
+      if (error) {
+        console.error('[PurchaseManager] Stripe checkout error:', error);
+        return { success: false, error: error.message || 'Failed to create checkout' };
+      }
+
+      if (data?.url) {
+        // Open checkout in new tab
+        window.open(data.url, '_blank');
+        return { success: true, url: data.url };
+      }
+
+      return { success: false, error: 'No checkout URL returned' };
+    } catch (err) {
+      console.error('[PurchaseManager] Stripe exception:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  }
+
   async purchasePackage(packageId: string): Promise<{ success: boolean; error?: string }> {
     if (!Capacitor.isNativePlatform()) {
-      console.log('[PurchaseManager] Simulating package purchase for:', packageId);
-      return { success: true };
+      console.log('[PurchaseManager] Using Stripe for package:', packageId);
+      return this.startStripeCheckout(packageId);
     }
 
     const pkg = this.packages.find(p => p.identifier === packageId || p.product?.identifier === packageId);
@@ -370,11 +398,11 @@ class PurchaseManager {
     }
   }
 
-  // Purchase subscription
+  // Purchase subscription - routes to RevenueCat (native) or Stripe (web)
   async purchaseSubscription(subscriptionId: string): Promise<{ success: boolean; error?: string }> {
     if (!Capacitor.isNativePlatform()) {
-      console.log('Simulating subscription purchase for:', subscriptionId);
-      return { success: true };
+      console.log('[PurchaseManager] Using Stripe for subscription:', subscriptionId);
+      return this.startStripeCheckout(subscriptionId);
     }
 
     return this.purchaseProduct(subscriptionId);

@@ -3,12 +3,13 @@ import { createPortal } from 'react-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Coins, Sparkles, Crown, RotateCcw, Flame, Zap, TrendingUp, Check, Eye, X, AlertCircle } from 'lucide-react';
+import { Coins, Sparkles, Crown, RotateCcw, Flame, Zap, TrendingUp, Check, Eye, X, AlertCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { COIN_PACKS, PREMIUM_SKINS, purchaseManager, PremiumSkin, CoinPack } from '@/lib/purchaseManager';
 import { supabase } from '@/integrations/supabase/client';
 import { audioManager } from '@/lib/audioManager';
 import { PixelCharacter, SKIN_COLORS } from './PixelCharacter';
+import { Capacitor } from '@capacitor/core';
 
 interface IAPShopProps {
   isOpen: boolean;
@@ -275,22 +276,31 @@ export function IAPShop({
     const pack = confirmPurchase.item as CoinPack;
     setPurchasing(pack.id);
     setConfirmPurchase(null);
+    const isNative = Capacitor.isNativePlatform();
 
     try {
       const result = await purchaseManager.purchaseProduct(pack.productId);
 
       if (result.success) {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ coins: currentCoins + pack.coins })
-          .eq('id', profileId);
+        if (isNative) {
+          // Native: Update coins directly after RevenueCat purchase
+          const { error } = await supabase
+            .from('profiles')
+            .update({ coins: currentCoins + pack.coins })
+            .eq('id', profileId);
 
-        if (!error) {
-          audioManager.playPurchase();
-          toast.success(`🎉 You received ${pack.coins.toLocaleString()} coins!`);
-          onPurchaseComplete();
+          if (!error) {
+            audioManager.playPurchase();
+            toast.success(`🎉 You received ${pack.coins.toLocaleString()} coins!`);
+            onPurchaseComplete();
+          } else {
+            toast.error('Failed to add coins. Please contact support.');
+          }
         } else {
-          toast.error('Failed to add coins. Please contact support.');
+          // Web: Stripe opens in new tab, fulfillment happens on return
+          toast.info('Checkout opened in new tab. Complete your purchase there.', {
+            duration: 5000,
+          });
         }
       } else {
         if (result.error !== 'Purchase cancelled') {
@@ -323,22 +333,30 @@ export function IAPShop({
     setPurchasing(skin.id);
     setConfirmPurchase(null);
     setPreviewSkin(null);
+    const isNative = Capacitor.isNativePlatform();
 
     try {
       const result = await purchaseManager.purchaseProduct(skin.productId);
 
       if (result.success) {
-        // Use the skinId (database ID) not the RevenueCat product ID
-        const { error } = await supabase
-          .from('owned_skins')
-          .insert({ profile_id: profileId, skin_id: skin.skinId });
+        if (isNative) {
+          // Native: Update skins directly after RevenueCat purchase
+          const { error } = await supabase
+            .from('owned_skins')
+            .insert({ profile_id: profileId, skin_id: skin.skinId });
 
-        if (!error) {
-          audioManager.playPurchase();
-          toast.success('🎨 Skin unlocked!');
-          onPurchaseComplete();
+          if (!error) {
+            audioManager.playPurchase();
+            toast.success('🎨 Skin unlocked!');
+            onPurchaseComplete();
+          } else {
+            toast.error('Failed to unlock skin. Please contact support.');
+          }
         } else {
-          toast.error('Failed to unlock skin. Please contact support.');
+          // Web: Stripe opens in new tab, fulfillment happens on return
+          toast.info('Checkout opened in new tab. Complete your purchase there.', {
+            duration: 5000,
+          });
         }
       } else {
         if (result.error !== 'Purchase cancelled') {
@@ -581,8 +599,8 @@ export function IAPShop({
 
           {!purchaseManager.isNativePlatform() && (
             <p className="text-[10px] text-muted-foreground text-center flex items-center justify-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              In-app purchases available in mobile app only
+              <ExternalLink className="w-3 h-3" />
+              Purchases will open Stripe checkout in a new tab
             </p>
           )}
         </DialogContent>
