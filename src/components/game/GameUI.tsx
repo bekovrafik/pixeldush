@@ -229,12 +229,12 @@ export function GameUI({
 
   if (isPlaying) {
     return (
-      <div className="absolute top-2 left-2 sm:top-4 sm:left-4 flex gap-1 sm:gap-2">
-        <Button variant="ghost" size="icon" onClick={onPause} className="bg-background/50 hover:bg-background/80 w-8 h-8 sm:w-10 sm:h-10">
-          {isPaused ? <Play className="w-4 h-4 sm:w-5 sm:h-5" /> : <Pause className="w-4 h-4 sm:w-5 sm:h-5" />}
+      <div className="game-ui-overlay flex gap-2">
+        <Button variant="ghost" size="icon" onClick={onPause} className="bg-background/60 hover:bg-background/80 w-9 h-9 backdrop-blur-sm">
+          {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
         </Button>
-        <Button variant="ghost" size="icon" onClick={onToggleMute} className="bg-background/50 hover:bg-background/80 w-8 h-8 sm:w-10 sm:h-10">
-          {isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
+        <Button variant="ghost" size="icon" onClick={onToggleMute} className="bg-background/60 hover:bg-background/80 w-9 h-9 backdrop-blur-sm">
+          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
         </Button>
       </div>
     );

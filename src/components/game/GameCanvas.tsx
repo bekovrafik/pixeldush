@@ -1207,8 +1207,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       height={CANVAS_HEIGHT}
       onClick={onTap}
       onTouchStart={(e) => { e.preventDefault(); onTap(); }}
-      className="w-full rounded-lg border-4 border-primary/30 cursor-pointer touch-none select-none"
-      style={{ imageRendering: 'pixelated', maxHeight: '50vh' }}
+      className="w-full h-full rounded-lg sm:border-4 sm:border-primary/30 cursor-pointer touch-none select-none game-canvas"
+      style={{ 
+        imageRendering: 'pixelated',
+        objectFit: 'cover',
+      }}
     />
   );
 }

@@ -403,8 +403,9 @@ export default function Index() {
   // Show attack button when boss is active
   const showAttackButton = !!(boss || (bossArena?.isActive && bossArena.bossesDefeated.length >= 0));
 
-  // Landscape fullscreen mode when playing on mobile
-  const gameModeClasses = isMobile && gameState.isPlaying && !isPortrait 
+  // Landscape fullscreen mode when playing or game over on mobile
+  const isInGameMode = gameState.isPlaying || gameState.isGameOver;
+  const gameModeClasses = isMobile && isInGameMode && !isPortrait 
     ? 'game-landscape-mode' 
     : 'min-h-[100dvh] bg-background flex flex-col items-center justify-center p-2 sm:p-4 scanlines overflow-hidden';
 
@@ -503,7 +504,7 @@ export default function Index() {
       )}
 
       <div 
-        className={`relative w-full ${isMobile && gameState.isPlaying && !isPortrait ? 'h-full game-canvas-wrapper' : 'max-w-4xl flex-1 flex flex-col justify-center'}`}
+        className={`relative ${isMobile && isInGameMode && !isPortrait ? 'w-full h-full game-canvas-wrapper' : 'w-full max-w-4xl flex-1 flex flex-col justify-center'}`}
         style={{ 
           transform: gameState.isPlaying ? `translate(${shakeOffset.x}px, ${shakeOffset.y}px)` : undefined,
           transition: shakeOffset.x === 0 && shakeOffset.y === 0 ? 'transform 0.1s ease-out' : 'none'
