@@ -17,7 +17,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: 'TAP TO JUMP',
-    description: 'Tap anywhere on the screen or press SPACE to jump. Tap twice for a double jump!',
+    description: 'Single tap = 1 jump. Double tap quickly = 2 jumps! Use double jump to clear tall obstacles.',
     icon: <ArrowUp className="w-12 h-12 text-primary" />,
   },
   {
