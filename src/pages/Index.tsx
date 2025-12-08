@@ -333,16 +333,7 @@ export default function Index() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState.isPlaying, gameState.isGameOver, jump, attack, startGame, pauseGame]);
 
-  // Double tap detection for mobile jump - track if first tap already jumped
-  const lastTapTimeRef = useCallback(() => {
-    const ref = { current: 0 };
-    return ref;
-  }, [])();
-  const pendingJumpRef = useCallback(() => {
-    const ref = { current: false };
-    return ref;
-  }, [])();
-  
+  // Simple tap handler - jump() already handles first jump vs double jump internally
   const handleTap = useCallback(() => {
     // Block all interaction during tutorial
     if (showTutorial) return;
@@ -351,24 +342,9 @@ export default function Index() {
     if (!gameState.isPlaying && !gameState.isGameOver) {
       startGame();
     } else if (gameState.isPlaying && !gameState.isPaused) {
-      const now = Date.now();
-      const timeSinceLastTap = now - lastTapTimeRef.current;
-      lastTapTimeRef.current = now;
-      
-      // Double tap = double jump (tap within 300ms)
-      if (timeSinceLastTap < 300 && pendingJumpRef.current) {
-        // This is the second tap of a double-tap - trigger second jump
-        jump();
-        pendingJumpRef.current = false;
-      } else {
-        // First tap - single jump
-        jump();
-        pendingJumpRef.current = true;
-        // Reset pending after window expires
-        setTimeout(() => {
-          pendingJumpRef.current = false;
-        }, 300);
-      }
+      // Just call jump once per tap - the game engine handles 
+      // first jump (from ground) vs double jump (in air) based on player state
+      jump();
     }
   }, [gameState.isPlaying, gameState.isGameOver, gameState.isPaused, jump, startGame, showTutorial]);
 
