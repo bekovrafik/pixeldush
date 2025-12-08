@@ -1,0 +1,93 @@
+{
+  "name": "Pixel Runner Splash Animation",
+  "version": "1.0.0",
+  "duration": 2500,
+  "background": {
+    "type": "gradient",
+    "color": "hsl(var(--background))"
+  },
+  "particles": {
+    "count": 20,
+    "size": 4,
+    "color": "hsl(var(--primary) / 0.4)",
+    "animation": {
+      "name": "float",
+      "duration": "3-5s",
+      "delay": "random(0-3s)",
+      "easing": "ease-in-out",
+      "infinite": true
+    }
+  },
+  "glow": {
+    "width": 500,
+    "height": 300,
+    "color": "hsl(var(--primary) / 0.2)",
+    "blur": 100,
+    "animation": {
+      "name": "pulse-slow",
+      "duration": "2s",
+      "infinite": true
+    }
+  },
+  "logo": {
+    "animation": {
+      "name": "scale-in",
+      "duration": "0.3s",
+      "easing": "ease-out"
+    },
+    "showCharacter": true,
+    "size": "lg"
+  },
+  "progressBar": {
+    "width": 192,
+    "height": 8,
+    "backgroundColor": "hsl(var(--muted) / 0.5)",
+    "fillGradient": {
+      "type": "linear",
+      "direction": "to-right",
+      "colors": ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--primary))"]
+    },
+    "pulseOverlay": {
+      "color": "rgba(255, 255, 255, 0.3)",
+      "animation": "pulse"
+    }
+  },
+  "loadingText": {
+    "fontFamily": "pixel",
+    "fontSize": "0.75rem",
+    "color": "hsl(var(--muted-foreground))",
+    "animation": "pulse",
+    "stages": [
+      { "progress": [0, 30], "text": "Loading assets..." },
+      { "progress": [30, 60], "text": "Preparing game..." },
+      { "progress": [60, 90], "text": "Almost ready..." },
+      { "progress": [90, 100], "text": "Get ready!" }
+    ]
+  },
+  "fadeOut": {
+    "duration": 500,
+    "easing": "ease-out"
+  },
+  "bottomGradient": {
+    "height": 128,
+    "gradient": "linear-gradient(to-top, hsl(var(--primary) / 0.1), transparent)"
+  },
+  "keyframes": {
+    "float": {
+      "0%, 100%": { "transform": "translateY(0) rotate(0deg)", "opacity": 0.4 },
+      "50%": { "transform": "translateY(-20px) rotate(180deg)", "opacity": 1 }
+    },
+    "scale-in": {
+      "0%": { "transform": "scale(0.95)", "opacity": 0 },
+      "100%": { "transform": "scale(1)", "opacity": 1 }
+    },
+    "pulse-slow": {
+      "0%, 100%": { "opacity": 0.5 },
+      "50%": { "opacity": 1 }
+    },
+    "shine": {
+      "0%": { "transform": "translateX(-200%) skewX(-12deg)" },
+      "50%, 100%": { "transform": "translateX(200%) skewX(-12deg)" }
+    }
+  }
+}
