@@ -76,6 +76,9 @@ export const SUBSCRIPTIONS: Subscription[] = [
   },
 ];
 
+// RevenueCat Offering ID
+const REVENUECAT_OFFERING_ID = 'ofrngec986c853f';
+
 class PurchaseManager {
   private initialized = false;
   private packages: PurchasesPackage[] = [];
@@ -116,8 +119,13 @@ class PurchaseManager {
 
     try {
       const offerings = await Purchases.getOfferings();
-      if (offerings.current?.availablePackages) {
-        this.packages = offerings.current.availablePackages;
+      
+      // Use the specific offering ID, fallback to current offering
+      const targetOffering = offerings.all[REVENUECAT_OFFERING_ID] || offerings.current;
+      
+      if (targetOffering?.availablePackages) {
+        this.packages = targetOffering.availablePackages;
+        console.log('Loaded packages from offering:', REVENUECAT_OFFERING_ID, this.packages.length);
       }
     } catch (error) {
       console.error('Failed to fetch offerings:', error);
