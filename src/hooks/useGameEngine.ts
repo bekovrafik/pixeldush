@@ -913,58 +913,58 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       setBossRage(prev => {
         if (!boss) return { current: 0, max: 100, isEnraged: false };
         
-        // Rage fills faster in phase 2
-        const rageIncrement = boss.phase >= 2 ? 0.5 : 0.25;
+        // Rage fills slower - more time between devastating attacks
+        const rageIncrement = boss.phase >= 2 ? 0.15 : 0.08; // Reduced from 0.5/0.25
         const newRage = Math.min(prev.current + rageIncrement, prev.max);
         const isNowEnraged = newRage >= prev.max && !prev.isEnraged;
         
         // Trigger rage attack when meter fills
         if (isNowEnraged) {
-          // Spawn devastating rage attack - multiple projectiles
+          // Spawn rage attack - fewer projectiles than before
           setBoss(prevBoss => {
             if (!prevBoss) return null;
             const rageProjectiles: BossProjectile[] = [];
             
             if (prevBoss.type === 'mech') {
-              // Mech: Sweeping laser barrage
-              for (let i = 0; i < 7; i++) {
+              // Mech: Laser barrage (reduced from 7 to 4)
+              for (let i = 0; i < 4; i++) {
                 rageProjectiles.push({
                   id: Math.random().toString(36).substr(2, 9),
                   x: prevBoss.x,
-                  y: GROUND_Y - 30 - i * 25,
-                  width: 50,
-                  height: 12,
-                  velocityX: -15,
+                  y: GROUND_Y - 40 - i * 40,
+                  width: 40,
+                  height: 10,
+                  velocityX: -12,
                   velocityY: 0,
                   type: 'laser',
                 });
               }
             } else if (prevBoss.type === 'dragon') {
-              // Dragon: Fire rain from above
-              for (let i = 0; i < 8; i++) {
+              // Dragon: Fire rain (reduced from 8 to 5)
+              for (let i = 0; i < 5; i++) {
                 rageProjectiles.push({
                   id: Math.random().toString(36).substr(2, 9),
-                  x: 100 + i * 90,
+                  x: 150 + i * 120,
                   y: 0,
-                  width: 30,
-                  height: 30,
+                  width: 25,
+                  height: 25,
                   velocityX: 0,
-                  velocityY: 8 + Math.random() * 4,
+                  velocityY: 6 + Math.random() * 3,
                   type: 'fireball',
                 });
               }
             } else if (prevBoss.type === 'titan') {
-              // Titan: Missile storm
-              for (let i = 0; i < 10; i++) {
-                const angle = (Math.PI * i) / 9 + Math.PI * 0.5;
+              // Titan: Missile storm (reduced from 10 to 6)
+              for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI * i) / 5 + Math.PI * 0.5;
                 rageProjectiles.push({
                   id: Math.random().toString(36).substr(2, 9),
                   x: prevBoss.x,
                   y: prevBoss.y + prevBoss.height / 2,
-                  width: 28,
-                  height: 16,
-                  velocityX: Math.cos(angle) * 12,
-                  velocityY: Math.sin(angle) * 8,
+                  width: 24,
+                  height: 14,
+                  velocityX: Math.cos(angle) * 10,
+                  velocityY: Math.sin(angle) * 6,
                   type: 'missile',
                 });
               }
@@ -984,14 +984,21 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         return { current: newRage, max: prev.max, isEnraged: prev.isEnraged };
       });
       
-      // Generate environmental hazards based on boss type
+      // Generate environmental hazards based on boss type (less frequent)
       setEnvironmentalHazards(prev => {
         if (!boss) return [];
         
-        // Spawn new hazards periodically
-        const shouldSpawn = Math.random() < 0.02; // 2% chance per frame
+        // Spawn new hazards periodically - reduced from 2% to 0.5%
+        const shouldSpawn = Math.random() < 0.005;
         if (!shouldSpawn) {
           // Update existing hazards
+          return prev
+            .map(h => ({ ...h, x: h.x - gameState.speed * 0.5, timer: h.timer - 1 }))
+            .filter(h => h.x > -50 && h.timer > 0);
+        }
+        
+        // Limit max hazards on screen
+        if (prev.length >= 2) {
           return prev
             .map(h => ({ ...h, x: h.x - gameState.speed * 0.5, timer: h.timer - 1 }))
             .filter(h => h.x > -50 && h.timer > 0);
@@ -1000,13 +1007,13 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         const hazardType = boss.type === 'mech' ? 'electric' : boss.type === 'dragon' ? 'fire' : 'void';
         const newHazard = {
           id: Math.random().toString(36).substr(2, 9),
-          x: 200 + Math.random() * 400,
-          y: GROUND_Y - 15,
-          width: 60 + Math.random() * 40,
-          height: 15,
+          x: 250 + Math.random() * 350,
+          y: GROUND_Y - 12,
+          width: 50 + Math.random() * 30, // Smaller hazards
+          height: 12,
           type: hazardType as 'fire' | 'electric' | 'void',
           damage: 1,
-          timer: 300 + Math.random() * 200, // 5-8 seconds
+          timer: 200 + Math.random() * 150, // Shorter duration
         };
         
         return [...prev.map(h => ({ ...h, x: h.x - gameState.speed * 0.5, timer: h.timer - 1 }))
