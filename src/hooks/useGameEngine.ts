@@ -26,10 +26,14 @@ interface GameEngineOptions {
   onPlayerDamage?: () => void;
   onBossDefeat?: () => void;
   onPlayerHit?: () => void;
+  onPowerUpCollect?: (type: string, x: number, y: number) => void;
+  onWeaponCollect?: (type: string, x: number, y: number) => void;
+  onBossSpawn?: (bossType: string) => void;
 }
 
 export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }, options: GameEngineOptions = {}) {
-  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit } = options;
+  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit, onPowerUpCollect, onWeaponCollect, onBossSpawn } = options;
+  const [justPickedUpWeapon, setJustPickedUpWeapon] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
     isPaused: false,
@@ -148,7 +152,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const generateWeaponPowerUp = useCallback((): WeaponPowerUp => {
     const types: WeaponType[] = ['fireball', 'laser', 'bomb'];
     const type = types[Math.floor(Math.random() * types.length)];
-    const y = GROUND_Y - 60 - Math.random() * 60;
+    // Spawn weapon power-ups lower so they're easier to collect while running
+    const y = GROUND_Y - 45 - Math.random() * 30;
     return { id: Math.random().toString(36).substr(2, 9), x: 900, y, width: 32, height: 32, type, collected: false };
   }, []);
 
@@ -693,14 +698,38 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           newBoss.isAttacking = true;
           
           const projectileType = prevBoss.type === 'mech' ? 'laser' : prevBoss.type === 'dragon' ? 'fireball' : 'missile';
+          
+          // Mix of projectile types - some aim at player, some at ground level
+          const projectileVariant = Math.random();
+          let targetY: number;
+          let velocityY: number = 0;
+          
+          if (projectileVariant < 0.4) {
+            // 40%: Aim at player's current position
+            targetY = player.y + PLAYER_HEIGHT / 2;
+            const dx = player.x - prevBoss.x;
+            const dy = targetY - (prevBoss.y + prevBoss.height / 2);
+            const speed = 10 + newBoss.phase * 2;
+            const angle = Math.atan2(dy, dx);
+            velocityY = Math.sin(angle) * speed * 0.5;
+          } else if (projectileVariant < 0.7) {
+            // 30%: Ground-level projectile (hits running players)
+            targetY = GROUND_Y - 25;
+            velocityY = 0;
+          } else {
+            // 30%: Mid-level projectile
+            targetY = GROUND_Y - 60;
+            velocityY = 0;
+          }
+          
           const newProjectile: BossProjectile = {
             id: Math.random().toString(36).substr(2, 9),
             x: prevBoss.x,
-            y: prevBoss.y + prevBoss.height / 2,
+            y: targetY,
             width: 30,
             height: 20,
             velocityX: -8 - newBoss.phase * 2,
-            velocityY: 0,
+            velocityY: velocityY,
             type: projectileType,
           };
           newBoss.projectiles = [...newBoss.projectiles, newProjectile];
@@ -902,6 +931,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         if (!pu.collected && checkCollision(player, pu)) {
           activatePowerUp(pu.type);
           setParticles(p => [...p, ...createParticles(pu.x + pu.width / 2, pu.y + pu.height / 2, ['#FF00FF', '#00FFFF', '#FFFF00'], 12)]);
+          onPowerUpCollect?.(pu.type, pu.x + pu.width / 2, pu.y + pu.height / 2);
           return { ...pu, collected: true };
         }
         return { ...pu, x: pu.x - gameState.speed };
@@ -915,6 +945,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         if (!wp.collected && checkCollision(player, wp)) {
           activateWeapon(wp.type);
           setParticles(p => [...p, ...createParticles(wp.x + wp.width / 2, wp.y + wp.height / 2, [WEAPON_CONFIGS[wp.type].color, '#FFFFFF'], 15)]);
+          onWeaponCollect?.(wp.type, wp.x + wp.width / 2, wp.y + wp.height / 2);
+          setJustPickedUpWeapon(true);
+          setTimeout(() => setJustPickedUpWeapon(false), 3000);
           return { ...wp, collected: true };
         }
         return { ...wp, x: wp.x - gameState.speed };
@@ -937,7 +970,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
 
   return { 
     gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, 
-    boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, 
+    boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled,
+    justPickedUpWeapon,
     jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode 
   };
 }

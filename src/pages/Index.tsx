@@ -122,7 +122,7 @@ export default function Index() {
   // Screen shake hook
   const { shakeOffset, shakeOnDamage, shakeOnBossDefeat, shakeOnHit } = useScreenShake();
 
-  const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { 
+  const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, justPickedUpWeapon, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { 
     isVip, 
     onPlayerDamage: () => {
       shakeOnDamage();
@@ -483,6 +483,7 @@ export default function Index() {
           hasDoubleJumped={player.hasDoubleJumped}
           activeWeapon={gameState.activeWeapon}
           weaponAmmo={gameState.weaponAmmo}
+          justPickedUpWeapon={justPickedUpWeapon}
         />
       )}
 
