@@ -10,6 +10,17 @@ interface BossHitEffect {
   isDefeat: boolean;
 }
 
+interface PhaseTransitionEffect {
+  bossType: string;
+  phase: number;
+  timestamp: number;
+}
+
+interface BossDeathEffect {
+  bossType: string;
+  timestamp: number;
+}
+
 interface GameCanvasProps {
   player: Player;
   obstacles: Obstacle[];
@@ -41,6 +52,9 @@ interface GameCanvasProps {
   // Boss intro
   bossIntro?: BossIntroState | null;
   bossIntroShakeOffset?: { x: number; y: number };
+  // Phase transition and boss death effects
+  phaseTransition?: PhaseTransitionEffect | null;
+  bossDeathEffect?: BossDeathEffect | null;
 }
 
 const CANVAS_WIDTH = 800;
@@ -62,7 +76,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 } }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 }, phaseTransition, bossDeathEffect }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -819,6 +833,242 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       .filter(p => p.life > 0);
   }, []);
 
+  // Draw phase transition effect with dramatic slowdown and screen flash
+  const drawPhaseTransition = useCallback((ctx: CanvasRenderingContext2D, transition: PhaseTransitionEffect | null) => {
+    if (!transition) return;
+    
+    const elapsed = Date.now() - transition.timestamp;
+    const duration = 1500; // 1.5 second transition
+    
+    if (elapsed >= duration) return;
+    
+    const progress = elapsed / duration;
+    
+    ctx.save();
+    
+    // Screen flash - intense at start, fading out
+    if (elapsed < 300) {
+      const flashIntensity = 1 - elapsed / 300;
+      const colors: Record<string, string> = {
+        mech: 'rgba(255, 68, 68, ',
+        dragon: 'rgba(153, 51, 255, ',
+        titan: 'rgba(255, 215, 0, ',
+      };
+      ctx.fillStyle = (colors[transition.bossType] || 'rgba(255, 255, 255, ') + flashIntensity * 0.8 + ')';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+    
+    // Dramatic slowdown vignette
+    if (elapsed < 800) {
+      const vignetteIntensity = Math.sin(progress * Math.PI) * 0.5;
+      const gradient = ctx.createRadialGradient(
+        CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0,
+        CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH * 0.7
+      );
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      gradient.addColorStop(1, `rgba(0, 0, 0, ${vignetteIntensity})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+    
+    // Phase 2 warning text
+    if (elapsed > 200 && elapsed < 1200) {
+      const textProgress = (elapsed - 200) / 1000;
+      const scale = 1 + Math.sin(textProgress * Math.PI * 4) * 0.1;
+      const alpha = textProgress < 0.2 ? textProgress * 5 : textProgress > 0.8 ? (1 - textProgress) * 5 : 1;
+      
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = 'center';
+      
+      // Boss type specific colors and text
+      const typeConfig: Record<string, { color: string; text: string }> = {
+        mech: { color: '#FF4444', text: '⚙️ OVERDRIVE MODE ⚙️' },
+        dragon: { color: '#9933FF', text: '🔥 INFERNO RAGE 🔥' },
+        titan: { color: '#FFD700', text: '⚡ COSMIC FURY ⚡' },
+      };
+      const config = typeConfig[transition.bossType] || { color: '#FF0000', text: '⚠️ PHASE 2 ⚠️' };
+      
+      // Glow effect
+      ctx.shadowColor = config.color;
+      ctx.shadowBlur = 30 + Math.sin(elapsed / 50) * 10;
+      
+      // Main text
+      ctx.font = `${Math.floor(24 * scale)}px "Press Start 2P", monospace`;
+      ctx.fillStyle = config.color;
+      ctx.fillText(config.text, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
+      
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.shadowBlur = 15;
+      ctx.fillText('INCREASED DIFFICULTY!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 20);
+    }
+    
+    ctx.restore();
+  }, []);
+
+  // Draw unique boss death animation based on boss type
+  const drawUniqueBossDeathEffect = useCallback((ctx: CanvasRenderingContext2D, deathEffect: BossDeathEffect | null) => {
+    if (!deathEffect) return;
+    
+    const elapsed = Date.now() - deathEffect.timestamp;
+    const duration = 2000; // 2 second death animation
+    
+    if (elapsed >= duration) return;
+    
+    const progress = elapsed / duration;
+    const bossX = CANVAS_WIDTH * 0.75;
+    const bossY = GROUND_Y - 80;
+    
+    ctx.save();
+    
+    // Boss-type specific death effects
+    if (deathEffect.bossType === 'mech') {
+      // Mech: Electrical explosion with circuit sparks
+      const sparkCount = Math.floor(50 * (1 - progress));
+      for (let i = 0; i < sparkCount; i++) {
+        const angle = (i / sparkCount) * Math.PI * 2 + elapsed / 100;
+        const radius = 50 + progress * 200 + Math.sin(i * 3) * 30;
+        const x = bossX + Math.cos(angle) * radius;
+        const y = bossY + Math.sin(angle) * radius * 0.6;
+        
+        ctx.globalAlpha = (1 - progress) * (0.5 + Math.random() * 0.5);
+        ctx.strokeStyle = i % 3 === 0 ? '#00FFFF' : i % 3 === 1 ? '#FFFF00' : '#FF4444';
+        ctx.lineWidth = 2 + Math.random() * 3;
+        
+        // Lightning bolt pattern
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        const zigzag = 3 + Math.floor(Math.random() * 3);
+        for (let j = 0; j < zigzag; j++) {
+          ctx.lineTo(
+            x + (Math.random() - 0.5) * 40,
+            y + (j + 1) * 15 + (Math.random() - 0.5) * 10
+          );
+        }
+        ctx.stroke();
+      }
+      
+      // Central explosion rings
+      for (let ring = 0; ring < 3; ring++) {
+        const ringRadius = progress * 150 + ring * 30;
+        ctx.globalAlpha = (1 - progress) * 0.6;
+        ctx.strokeStyle = ring % 2 === 0 ? '#FF4444' : '#FFAA00';
+        ctx.lineWidth = 4 - ring;
+        ctx.beginPath();
+        ctx.arc(bossX, bossY, ringRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      
+    } else if (deathEffect.bossType === 'dragon') {
+      // Dragon: Fire tornado with ember spiral
+      const fireCount = Math.floor(80 * (1 - progress * 0.5));
+      
+      for (let i = 0; i < fireCount; i++) {
+        const spiralAngle = (i / fireCount) * Math.PI * 6 + elapsed / 150;
+        const heightOffset = (i / fireCount) * 200;
+        const radius = 30 + progress * 100 + Math.sin(i * 2) * 20;
+        const x = bossX + Math.cos(spiralAngle) * radius;
+        const y = bossY - heightOffset + Math.sin(elapsed / 100 + i) * 10;
+        
+        ctx.globalAlpha = (1 - progress) * (0.8 - heightOffset / 300);
+        
+        // Fire gradient
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 15);
+        gradient.addColorStop(0, '#FFFF00');
+        gradient.addColorStop(0.3, '#FF8800');
+        gradient.addColorStop(0.7, '#FF4400');
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, 15 * (1 - progress * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Purple magical dissipation
+      for (let i = 0; i < 20; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = progress * 180 * (0.5 + Math.random() * 0.5);
+        ctx.globalAlpha = (1 - progress) * 0.5;
+        ctx.fillStyle = '#9933FF';
+        ctx.beginPath();
+        ctx.arc(bossX + Math.cos(angle) * dist, bossY + Math.sin(angle) * dist * 0.6, 5 + Math.random() * 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+    } else if (deathEffect.bossType === 'titan') {
+      // Titan: Golden cosmic explosion with shockwave
+      
+      // Expanding shockwave rings
+      for (let ring = 0; ring < 4; ring++) {
+        const ringProgress = Math.max(0, progress - ring * 0.1);
+        if (ringProgress <= 0) continue;
+        
+        const ringRadius = ringProgress * 250;
+        ctx.globalAlpha = (1 - ringProgress) * 0.8;
+        ctx.strokeStyle = ring % 2 === 0 ? '#FFD700' : '#FF8C00';
+        ctx.lineWidth = 6 - ring;
+        ctx.beginPath();
+        ctx.arc(bossX, bossY, ringRadius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      
+      // Star burst pattern
+      const starCount = 12;
+      for (let i = 0; i < starCount; i++) {
+        const angle = (i / starCount) * Math.PI * 2;
+        const length = progress * 300;
+        
+        ctx.globalAlpha = (1 - progress) * 0.9;
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 20;
+        
+        ctx.beginPath();
+        ctx.moveTo(bossX, bossY);
+        ctx.lineTo(bossX + Math.cos(angle) * length, bossY + Math.sin(angle) * length * 0.6);
+        ctx.stroke();
+      }
+      
+      // Golden particles outward
+      const particleCount = Math.floor(60 * (1 - progress * 0.5));
+      for (let i = 0; i < particleCount; i++) {
+        const pAngle = (i / particleCount) * Math.PI * 2 + elapsed / 500;
+        const dist = progress * 200 + Math.sin(i * 5) * 30;
+        
+        ctx.globalAlpha = (1 - progress) * 0.7;
+        ctx.fillStyle = i % 2 === 0 ? '#FFD700' : '#FFA500';
+        ctx.beginPath();
+        
+        // Diamond shaped particles
+        const px = bossX + Math.cos(pAngle) * dist;
+        const py = bossY + Math.sin(pAngle) * dist * 0.6;
+        const size = 8 * (1 - progress);
+        
+        ctx.moveTo(px, py - size);
+        ctx.lineTo(px + size, py);
+        ctx.lineTo(px, py + size);
+        ctx.lineTo(px - size, py);
+        ctx.closePath();
+        ctx.fill();
+      }
+      
+      // Central golden glow
+      ctx.globalAlpha = (1 - progress) * 0.6;
+      const centralGlow = ctx.createRadialGradient(bossX, bossY, 0, bossX, bossY, 80 * (1 - progress));
+      centralGlow.addColorStop(0, '#FFFFFF');
+      centralGlow.addColorStop(0.3, '#FFD700');
+      centralGlow.addColorStop(1, 'rgba(255, 215, 0, 0)');
+      ctx.fillStyle = centralGlow;
+      ctx.beginPath();
+      ctx.arc(bossX, bossY, 80 * (1 - progress * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+  }, []);
+
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, powerUps: ActivePowerUp[], showVipBadge: boolean) => {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(CANVAS_WIDTH - 150, 10, 140, 40);
@@ -1352,6 +1602,10 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     }
     drawParticles(ctx, particles);
     drawBossDefeatEffects(ctx);
+    drawUniqueBossDeathEffect(ctx, bossDeathEffect || null);
+    
+    // Draw phase transition effect (dramatic overlay)
+    drawPhaseTransition(ctx, phaseTransition || null);
     
     // Draw boss hit screen flash effect
     const hitEffect = bossHitEffectRef.current;
@@ -1477,7 +1731,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchBlockRef = useRef(false);
 
