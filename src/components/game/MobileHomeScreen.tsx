@@ -32,9 +32,9 @@ interface MobileHomeScreenProps {
 type GameMode = 'normal' | 'rush' | 'endless';
 
 const GAME_MODES: { id: GameMode; name: string; icon: React.ReactNode; color: string; bgColor: string; description: string }[] = [
-  { id: 'normal', name: 'CLASSIC', icon: <Play className="w-6 h-6" />, color: 'text-primary', bgColor: 'bg-primary', description: 'Normal Speed' },
-  { id: 'rush', name: 'RUSH', icon: <Zap className="w-6 h-6" />, color: 'text-orange-500', bgColor: 'bg-orange-500', description: 'Fast & 1.5x Coins!' },
-  { id: 'endless', name: 'ENDLESS', icon: <span className="text-xl">♾️</span>, color: 'text-purple-500', bgColor: 'bg-purple-500', description: 'Infinite Bosses!' },
+  { id: 'normal', name: 'CLASSIC', icon: <Play className="w-4 h-4" />, color: 'text-primary', bgColor: 'bg-primary', description: 'Normal Speed' },
+  { id: 'rush', name: 'RUSH', icon: <Zap className="w-4 h-4" />, color: 'text-orange-500', bgColor: 'bg-orange-500', description: 'Fast & 1.5x Coins!' },
+  { id: 'endless', name: 'ENDLESS', icon: <span className="text-sm">♾️</span>, color: 'text-purple-500', bgColor: 'bg-purple-500', description: 'Infinite Bosses!' },
 ];
 
 export function MobileHomeScreen({
@@ -177,24 +177,19 @@ export function MobileHomeScreen({
         {/* Game Mode Selector */}
         <div className="w-full max-w-sm space-y-4">
           {/* Mode Pills */}
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-1.5 justify-center">
             {GAME_MODES.map((mode) => (
               <button
                 key={mode.id}
                 onClick={() => handleModeSelect(mode.id)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all active:scale-95 ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all active:scale-95 ${
                   selectedMode === mode.id
-                    ? `${mode.bgColor} border-white/30 text-white shadow-lg`
+                    ? `${mode.bgColor} border-white/30 text-white shadow-md`
                     : 'bg-muted/40 border-border/30 text-muted-foreground'
                 }`}
               >
                 {mode.icon}
-                <div className="text-left">
-                  <p className="font-pixel text-xs">{mode.name}</p>
-                  {selectedMode === mode.id && (
-                    <p className="text-[9px] opacity-80">{mode.description}</p>
-                  )}
-                </div>
+                <span className="font-pixel text-[10px]">{mode.name}</span>
               </button>
             ))}
           </div>
