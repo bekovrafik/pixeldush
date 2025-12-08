@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Settings, Volume2, Music, Shield, HelpCircle, FileText, BarChart3 } from 'lucide-react';
+import { Settings, Volume2, Music, Shield, HelpCircle, User, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface SettingsModalProps {
@@ -11,6 +11,7 @@ interface SettingsModalProps {
   isMusicMuted: boolean;
   onToggleMute: () => void;
   onToggleMusic: () => void;
+  onOpenAccount?: () => void;
 }
 
 export function SettingsModal({
@@ -20,12 +21,18 @@ export function SettingsModal({
   isMusicMuted,
   onToggleMute,
   onToggleMusic,
+  onOpenAccount,
 }: SettingsModalProps) {
   const navigate = useNavigate();
 
   const handleNavigate = (path: string) => {
     onClose();
     navigate(path);
+  };
+
+  const handleOpenAccount = () => {
+    onClose();
+    onOpenAccount?.();
   };
 
   return (
@@ -66,8 +73,19 @@ export function SettingsModal({
             </div>
           </div>
 
-          {/* Links */}
+          {/* Account & Links */}
           <div className="space-y-2">
+            {onOpenAccount && (
+              <Button
+                variant="outline"
+                className="w-full justify-start border-primary/30 text-sm"
+                onClick={handleOpenAccount}
+              >
+                <User className="w-4 h-4 mr-3 text-primary" />
+                Account Management
+              </Button>
+            )}
+
             <Button
               variant="outline"
               className="w-full justify-start border-primary/30 text-sm"
