@@ -434,13 +434,75 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     if (combo <= 0) return;
     
     ctx.save();
-    const colors = ['#FFFFFF', '#FFFF00', '#FF8800', '#FF4400', '#FF00FF'];
-    const size = 12 + combo * 4;
     
-    ctx.fillStyle = colors[Math.min(combo - 1, colors.length - 1)];
+    // Escalating colors: white -> yellow -> orange -> red -> magenta -> rainbow
+    const comboColors = [
+      ['#FFFFFF', '#CCCCCC'], // 1x
+      ['#FFFF00', '#FFD700'], // 2x
+      ['#FF8800', '#FF6600'], // 3x
+      ['#FF4400', '#FF2200'], // 4x
+      ['#FF00FF', '#CC00CC'], // 5x (max)
+    ];
+    const colorIndex = Math.min(combo - 1, comboColors.length - 1);
+    const [mainColor, accentColor] = comboColors[colorIndex];
+    
+    // Escalating text sizes
+    const baseSize = 16 + combo * 6;
+    const size = baseSize + Math.sin(Date.now() / 100) * (combo * 1.5); // Pulsing effect
+    
+    // Position with bounce animation
+    const bounceY = Math.sin(Date.now() / 80) * (5 + combo);
+    const y = 100 + bounceY;
+    
+    // Glow effect for higher combos
+    if (combo >= 3) {
+      ctx.shadowColor = mainColor;
+      ctx.shadowBlur = 15 + combo * 5;
+    }
+    
+    // Background flash for max combo
+    if (combo >= 5) {
+      const flashIntensity = Math.abs(Math.sin(Date.now() / 50)) * 0.15;
+      ctx.fillStyle = `rgba(255, 0, 255, ${flashIntensity})`;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+    
+    // Draw outline/stroke for better visibility
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 3 + combo;
     ctx.font = `bold ${size}px "Press Start 2P", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText(`${combo}x COMBO!`, 400, Math.min(playerY - 30, 80));
+    ctx.strokeText(`${combo}x COMBO!`, CANVAS_WIDTH / 2, y);
+    
+    // Main text with gradient for high combos
+    if (combo >= 4) {
+      const gradient = ctx.createLinearGradient(CANVAS_WIDTH / 2 - 100, y - 20, CANVAS_WIDTH / 2 + 100, y + 20);
+      gradient.addColorStop(0, mainColor);
+      gradient.addColorStop(0.5, '#FFFFFF');
+      gradient.addColorStop(1, mainColor);
+      ctx.fillStyle = gradient;
+    } else {
+      ctx.fillStyle = mainColor;
+    }
+    ctx.fillText(`${combo}x COMBO!`, CANVAS_WIDTH / 2, y);
+    
+    // Particle burst around text for combo 3+
+    if (combo >= 3) {
+      const particleCount = combo * 3;
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (Date.now() / 500 + i * (Math.PI * 2 / particleCount)) % (Math.PI * 2);
+        const radius = 80 + combo * 10 + Math.sin(Date.now() / 200 + i) * 15;
+        const px = CANVAS_WIDTH / 2 + Math.cos(angle) * radius;
+        const py = y + Math.sin(angle) * (radius * 0.4);
+        
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = comboColors[i % comboColors.length][0];
+        ctx.beginPath();
+        ctx.arc(px, py, 3 + combo, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
     ctx.restore();
   }, []);
 

@@ -33,6 +33,49 @@ export const PREMIUM_SKINS: PremiumSkin[] = [
   { id: 'skin_dragon', name: 'Dragon Spirit', description: 'Legendary dragon form', productId: 'skin_dragon', price: '$4.99' },
 ];
 
+export interface Subscription {
+  id: string;
+  name: string;
+  description: string;
+  productId: string;
+  price: string;
+  period: 'monthly' | 'yearly';
+  benefits: string[];
+}
+
+// VIP Subscription products (must match RevenueCat/App Store/Play Store)
+export const SUBSCRIPTIONS: Subscription[] = [
+  { 
+    id: 'vip_monthly', 
+    name: 'VIP Monthly', 
+    description: 'All VIP benefits, billed monthly',
+    productId: 'vip_monthly', 
+    price: '$4.99/mo',
+    period: 'monthly',
+    benefits: [
+      'Ad-free gameplay',
+      '2x coin earnings',
+      'Exclusive VIP skins',
+      'Free daily revives',
+      'Early access to new features',
+    ],
+  },
+  { 
+    id: 'vip_yearly', 
+    name: 'VIP Yearly', 
+    description: 'All VIP benefits, save 40%',
+    productId: 'vip_yearly', 
+    price: '$29.99/yr',
+    period: 'yearly',
+    benefits: [
+      'All monthly benefits',
+      '40% savings vs monthly',
+      'Bonus 5000 coins',
+      'Exclusive yearly badge',
+    ],
+  },
+];
+
 class PurchaseManager {
   private initialized = false;
   private packages: PurchasesPackage[] = [];
@@ -190,6 +233,70 @@ class PurchaseManager {
     } catch (error) {
       console.error('Failed to set user ID:', error);
     }
+  }
+
+  // Check if user has active VIP subscription
+  async checkVipSubscription(): Promise<{ isVip: boolean; expiresAt: string | null; willRenew: boolean }> {
+    if (!Capacitor.isNativePlatform()) {
+      return { isVip: false, expiresAt: null, willRenew: false };
+    }
+
+    try {
+      const info = await this.getCustomerInfo();
+      if (!info) return { isVip: false, expiresAt: null, willRenew: false };
+
+      const vipEntitlement = info.entitlements.active['vip'];
+      if (vipEntitlement) {
+        return {
+          isVip: true,
+          expiresAt: vipEntitlement.expirationDate || null,
+          willRenew: vipEntitlement.willRenew,
+        };
+      }
+
+      return { isVip: false, expiresAt: null, willRenew: false };
+    } catch (error) {
+      console.error('Failed to check VIP subscription:', error);
+      return { isVip: false, expiresAt: null, willRenew: false };
+    }
+  }
+
+  // Check if subscription is paused (Google Play feature)
+  async checkSubscriptionPauseStatus(): Promise<{ isPaused: boolean; resumeDate: string | null }> {
+    if (!Capacitor.isNativePlatform()) {
+      return { isPaused: false, resumeDate: null };
+    }
+
+    try {
+      const info = await this.getCustomerInfo();
+      if (!info) return { isPaused: false, resumeDate: null };
+
+      // RevenueCat handles pause states through entitlement status
+      const vipEntitlement = info.entitlements.active['vip'];
+      if (vipEntitlement) {
+        // If willRenew is false but subscription is still active, it may be paused or cancelled
+        const isPaused = !vipEntitlement.willRenew && vipEntitlement.isActive;
+        return {
+          isPaused,
+          resumeDate: isPaused ? vipEntitlement.expirationDate || null : null,
+        };
+      }
+
+      return { isPaused: false, resumeDate: null };
+    } catch (error) {
+      console.error('Failed to check pause status:', error);
+      return { isPaused: false, resumeDate: null };
+    }
+  }
+
+  // Purchase subscription
+  async purchaseSubscription(subscriptionId: string): Promise<{ success: boolean; error?: string }> {
+    if (!Capacitor.isNativePlatform()) {
+      console.log('Simulating subscription purchase for:', subscriptionId);
+      return { success: true };
+    }
+
+    return this.purchaseProduct(subscriptionId);
   }
 }
 
