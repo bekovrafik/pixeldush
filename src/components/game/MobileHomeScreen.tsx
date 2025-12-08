@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Swords, Users, BarChart3, Volume2, VolumeX, DollarSign, RotateCw, Award, Globe, Coins, Timer, Infinity } from 'lucide-react';
 import { WORLD_CONFIGS, WorldTheme } from '@/types/game';
 import { hapticsManager } from '@/lib/hapticsManager';
-
+import { HomeHeroSection } from './HomeHeroSection';
 interface MobileHomeScreenProps {
   highScore: number;
   currentWorld: WorldTheme;
@@ -164,28 +164,27 @@ export function MobileHomeScreen({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-between px-4 py-4">
-        {/* Game Title & Stats */}
-        <div className="text-center space-y-2 animate-fade-in">
-          <h1 className="font-pixel text-3xl text-primary tracking-wider">
-            PIXEL
-          </h1>
-          <h1 className="font-pixel text-3xl text-accent tracking-wider -mt-1">
-            RUNNER
-          </h1>
+      <main className="flex-1 flex flex-col items-center justify-between px-4 py-2">
+        {/* Hero Section with Animated Character */}
+        <div className="w-full animate-fade-in">
+          <HomeHeroSection />
           
-          {/* High Score Badge */}
-          {highScore > 0 && (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 rounded-full border border-primary/30">
-              <Trophy className="w-4 h-4 text-primary" />
-              <span className="font-pixel text-sm text-primary">{highScore.toLocaleString()}</span>
+          {/* Stats Row */}
+          <div className="flex items-center justify-center gap-4 mt-2">
+            {/* High Score Badge */}
+            {highScore > 0 && (
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/30">
+                <Trophy className="w-3.5 h-3.5 text-primary" />
+                <span className="font-pixel text-xs text-primary">{highScore.toLocaleString()}</span>
+              </div>
+            )}
+            
+            {/* Current World */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-muted/50 rounded-full border border-border/30">
+              <span className="text-sm">🌍</span>
+              <span className="text-[10px] text-muted-foreground">{WORLD_CONFIGS[currentWorld].name}</span>
             </div>
-          )}
-          
-          {/* Current World */}
-          <p className="text-xs text-muted-foreground">
-            🌍 {WORLD_CONFIGS[currentWorld].name}
-          </p>
+          </div>
         </div>
 
         {/* Game Mode Selector */}
