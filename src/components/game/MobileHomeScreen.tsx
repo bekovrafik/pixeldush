@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Swords, Users, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Swords, Users, BarChart3, Volume2, VolumeX } from 'lucide-react';
 import { WORLD_CONFIGS, WorldTheme } from '@/types/game';
 import { hapticsManager } from '@/lib/hapticsManager';
 
@@ -31,10 +31,10 @@ interface MobileHomeScreenProps {
 
 type GameMode = 'normal' | 'rush' | 'endless';
 
-const GAME_MODES: { id: GameMode; name: string; icon: React.ReactNode; color: string; description: string }[] = [
-  { id: 'normal', name: 'CLASSIC', icon: <Play className="w-8 h-8" />, color: 'from-primary to-primary/80', description: 'Standard gameplay' },
-  { id: 'rush', name: 'RUSH', icon: <Zap className="w-8 h-8" />, color: 'from-red-600 to-orange-500', description: 'No breaks • 1.5x rewards!' },
-  { id: 'endless', name: 'ENDLESS', icon: <span className="text-2xl">♾️</span>, color: 'from-purple-600 to-pink-500', description: 'Infinite bosses • Survive!' },
+const GAME_MODES: { id: GameMode; name: string; icon: React.ReactNode; color: string; bgColor: string; description: string }[] = [
+  { id: 'normal', name: 'CLASSIC', icon: <Play className="w-6 h-6" />, color: 'text-primary', bgColor: 'bg-primary', description: 'Normal Speed' },
+  { id: 'rush', name: 'RUSH', icon: <Zap className="w-6 h-6" />, color: 'text-orange-500', bgColor: 'bg-orange-500', description: 'Fast & 1.5x Coins!' },
+  { id: 'endless', name: 'ENDLESS', icon: <span className="text-xl">♾️</span>, color: 'text-purple-500', bgColor: 'bg-purple-500', description: 'Infinite Bosses!' },
 ];
 
 export function MobileHomeScreen({
@@ -42,6 +42,7 @@ export function MobileHomeScreen({
   currentWorld,
   coins,
   isVip,
+  isMuted,
   rushModeEnabled,
   endlessModeEnabled,
   username,
@@ -57,61 +58,29 @@ export function MobileHomeScreen({
   onOpenBattlePass,
   onOpenBossCollection,
   onOpenFriends,
+  onToggleMute,
   onOpenStats,
 }: MobileHomeScreenProps) {
-  const [currentModeIndex, setCurrentModeIndex] = useState(
-    rushModeEnabled ? 1 : endlessModeEnabled ? 2 : 0
+  const [selectedMode, setSelectedMode] = useState<GameMode>(
+    rushModeEnabled ? 'rush' : endlessModeEnabled ? 'endless' : 'normal'
   );
-  
-  // Swipe gesture handling
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-  }, []);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
-
-    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+  const handleModeSelect = useCallback((mode: GameMode) => {
+    setSelectedMode(mode);
+    hapticsManager.lightImpact();
     
-    // Only trigger swipe if horizontal movement is greater than vertical
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-      if (deltaX > 0) {
-        // Swipe right - previous mode
-        navigateMode(-1);
-      } else {
-        // Swipe left - next mode
-        navigateMode(1);
-      }
+    // Update game mode based on selection
+    if (mode === 'rush') {
+      if (!rushModeEnabled) onToggleRushMode();
+      if (endlessModeEnabled) onToggleEndlessMode();
+    } else if (mode === 'endless') {
+      if (rushModeEnabled) onToggleRushMode();
+      if (!endlessModeEnabled) onToggleEndlessMode();
+    } else {
+      if (rushModeEnabled) onToggleRushMode();
+      if (endlessModeEnabled) onToggleEndlessMode();
     }
-    
-    touchStartRef.current = null;
-  }, []);
-
-  const navigateMode = useCallback((direction: number) => {
-    const newIndex = Math.max(0, Math.min(GAME_MODES.length - 1, currentModeIndex + direction));
-    if (newIndex !== currentModeIndex) {
-      setCurrentModeIndex(newIndex);
-      hapticsManager.lightImpact();
-      
-      // Update game mode
-      const newMode = GAME_MODES[newIndex].id;
-      if (newMode === 'rush' && !rushModeEnabled) {
-        onToggleRushMode();
-      } else if (newMode === 'endless' && !endlessModeEnabled) {
-        onToggleEndlessMode();
-      } else if (newMode === 'normal') {
-        if (rushModeEnabled) onToggleRushMode();
-        if (endlessModeEnabled) onToggleEndlessMode();
-      }
-    }
-  }, [currentModeIndex, rushModeEnabled, endlessModeEnabled, onToggleRushMode, onToggleEndlessMode]);
+  }, [rushModeEnabled, endlessModeEnabled, onToggleRushMode, onToggleEndlessMode]);
 
   const handlePlayPress = useCallback(() => {
     hapticsManager.mediumImpact();
@@ -123,194 +92,222 @@ export function MobileHomeScreen({
     callback();
   }, []);
 
-  const currentMode = GAME_MODES[currentModeIndex];
+  const currentMode = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-background via-background to-card flex flex-col overflow-hidden">
-      {/* Status Bar */}
+    <div className="min-h-[100dvh] bg-gradient-to-b from-background via-background to-card/80 flex flex-col overflow-hidden">
+      {/* Safe Area Top */}
       <div className="safe-area-top" />
-      <header className="flex justify-between items-center px-4 py-3 bg-card/50 backdrop-blur-sm border-b border-border/50">
+      
+      {/* Top Header Bar */}
+      <header className="flex justify-between items-center px-4 py-3">
+        {/* Left: Profile/VIP */}
         <div className="flex items-center gap-2">
-          {isVip && (
-            <div className="px-2 py-1 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center gap-1">
-              <Crown className="w-3 h-3 text-black" />
-              <span className="font-pixel text-[8px] text-black">VIP</span>
-            </div>
-          )}
-          {username && (
-            <span className="text-xs text-muted-foreground">{username}</span>
+          {isVip ? (
+            <button 
+              onClick={() => handleButtonPress(onOpenVip)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/40"
+            >
+              <Crown className="w-4 h-4 text-yellow-500" />
+              <span className="font-pixel text-[10px] text-yellow-500">VIP</span>
+            </button>
+          ) : (
+            <button 
+              onClick={() => handleButtonPress(onOpenVip)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-muted/50 border border-border/50 animate-pulse"
+            >
+              <Crown className="w-4 h-4 text-muted-foreground" />
+              <span className="font-pixel text-[9px] text-yellow-500">GET VIP</span>
+            </button>
           )}
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50">
-          <span className="text-yellow-500">🪙</span>
-          <span className="font-pixel text-xs text-foreground">{coins}</span>
+        
+        {/* Center: Coins */}
+        <button 
+          onClick={() => handleButtonPress(onOpenShop)}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted/60 border border-border/40"
+        >
+          <span className="text-lg">🪙</span>
+          <span className="font-pixel text-sm text-foreground">{coins.toLocaleString()}</span>
+          <span className="text-xs text-primary font-bold">+</span>
+        </button>
+        
+        {/* Right: Sound & Settings */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleButtonPress(onToggleMute)}
+            className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center"
+          >
+            {isMuted ? <VolumeX className="w-5 h-5 text-muted-foreground" /> : <Volume2 className="w-5 h-5 text-foreground" />}
+          </button>
+          <button
+            onClick={() => handleButtonPress(onOpenSettings)}
+            className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center"
+          >
+            <Settings className="w-5 h-5 text-foreground" />
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main 
-        ref={containerRef}
-        className="flex-1 flex flex-col items-center justify-center px-4 py-6 gap-4"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Game Title */}
-        <div className="text-center">
-          <h1 className="font-pixel text-2xl sm:text-3xl text-primary neon-glow mb-1">
-            PIXEL RUNNER
+      <main className="flex-1 flex flex-col items-center justify-between px-4 py-4">
+        {/* Game Title & Stats */}
+        <div className="text-center space-y-2 animate-fade-in">
+          <h1 className="font-pixel text-3xl text-primary tracking-wider">
+            PIXEL
           </h1>
-          <p className="text-xs text-muted-foreground">
-            {WORLD_CONFIGS[currentWorld].name}
-          </p>
+          <h1 className="font-pixel text-3xl text-accent tracking-wider -mt-1">
+            RUNNER
+          </h1>
+          
+          {/* High Score Badge */}
           {highScore > 0 && (
-            <p className="font-pixel text-xs text-accent mt-1">
-              🏆 {highScore}
-            </p>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 rounded-full border border-primary/30">
+              <Trophy className="w-4 h-4 text-primary" />
+              <span className="font-pixel text-sm text-primary">{highScore.toLocaleString()}</span>
+            </div>
           )}
+          
+          {/* Current World */}
+          <p className="text-xs text-muted-foreground">
+            🌍 {WORLD_CONFIGS[currentWorld].name}
+          </p>
         </div>
 
-        {/* Game Mode Carousel */}
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center gap-4">
-            {/* Left Arrow */}
-            <button
-              onClick={() => navigateMode(-1)}
-              disabled={currentModeIndex === 0}
-              className="w-10 h-10 rounded-full bg-card/50 border border-border/50 flex items-center justify-center disabled:opacity-30 transition-all active:scale-95"
-            >
-              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-            </button>
-
-            {/* Mode Card */}
-            <div 
-              className={`flex-1 p-6 rounded-2xl bg-gradient-to-br ${currentMode.color} shadow-2xl transform transition-all duration-300`}
-            >
-              <div className="flex flex-col items-center gap-2 text-white">
-                {currentMode.icon}
-                <span className="font-pixel text-lg">{currentMode.name}</span>
-                <span className="text-xs opacity-80">{currentMode.description}</span>
-              </div>
-            </div>
-
-            {/* Right Arrow */}
-            <button
-              onClick={() => navigateMode(1)}
-              disabled={currentModeIndex === GAME_MODES.length - 1}
-              className="w-10 h-10 rounded-full bg-card/50 border border-border/50 flex items-center justify-center disabled:opacity-30 transition-all active:scale-95"
-            >
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
-          </div>
-
-          {/* Mode Indicators */}
-          <div className="flex justify-center gap-2 mt-4">
-            {GAME_MODES.map((mode, index) => (
+        {/* Game Mode Selector */}
+        <div className="w-full max-w-sm space-y-4">
+          {/* Mode Pills */}
+          <div className="flex gap-2 justify-center">
+            {GAME_MODES.map((mode) => (
               <button
                 key={mode.id}
-                onClick={() => {
-                  const diff = index - currentModeIndex;
-                  if (diff !== 0) navigateMode(diff);
-                }}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${
-                  index === currentModeIndex 
-                    ? 'bg-primary scale-125' 
-                    : 'bg-muted-foreground/30'
+                onClick={() => handleModeSelect(mode.id)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all active:scale-95 ${
+                  selectedMode === mode.id
+                    ? `${mode.bgColor} border-white/30 text-white shadow-lg`
+                    : 'bg-muted/40 border-border/30 text-muted-foreground'
                 }`}
-              />
+              >
+                {mode.icon}
+                <div className="text-left">
+                  <p className="font-pixel text-xs">{mode.name}</p>
+                  {selectedMode === mode.id && (
+                    <p className="text-[9px] opacity-80">{mode.description}</p>
+                  )}
+                </div>
+              </button>
             ))}
           </div>
 
-          {/* Swipe Hint */}
-          <p className="text-center text-[10px] text-muted-foreground mt-2 animate-pulse">
-            ← Swipe to change mode →
-          </p>
+          {/* PLAY Button */}
+          <Button 
+            onClick={handlePlayPress}
+            className={`w-full h-16 text-xl font-pixel rounded-2xl shadow-2xl ${currentMode.bgColor} hover:opacity-90 transition-all active:scale-95 border-2 border-white/20 relative overflow-hidden`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+            <div className="relative flex items-center gap-3">
+              <Play className="w-7 h-7 fill-current" />
+              <span>PLAY</span>
+            </div>
+          </Button>
         </div>
 
-        {/* Play Button */}
-        <Button 
-          onClick={handlePlayPress} 
-          className={`w-full max-w-xs h-16 text-lg rounded-xl shadow-2xl bg-gradient-to-r ${currentMode.color} hover:opacity-90 transition-all active:scale-95 border-2 border-white/20`}
-        >
-          <Play className="w-6 h-6 mr-3" />
-          PLAY
-        </Button>
+        {/* Quick Features Grid */}
+        <div className="w-full max-w-sm">
+          <div className="grid grid-cols-4 gap-3">
+            <FeatureButton 
+              icon={Gift} 
+              label="Daily" 
+              color="text-green-400"
+              bgColor="bg-green-500/10"
+              borderColor="border-green-500/30"
+              badge="!"
+              onClick={() => handleButtonPress(onOpenDailyReward)} 
+            />
+            <FeatureButton 
+              icon={Target} 
+              label="Tasks" 
+              color="text-orange-400"
+              bgColor="bg-orange-500/10"
+              borderColor="border-orange-500/30"
+              onClick={() => handleButtonPress(onOpenDailyChallenges)} 
+            />
+            <FeatureButton 
+              icon={Star} 
+              label="Pass" 
+              color="text-cyan-400"
+              bgColor="bg-cyan-500/10"
+              borderColor="border-cyan-500/30"
+              onClick={() => handleButtonPress(onOpenBattlePass)} 
+            />
+            <FeatureButton 
+              icon={Swords} 
+              label="Bosses" 
+              color="text-red-400"
+              bgColor="bg-red-500/10"
+              borderColor="border-red-500/30"
+              onClick={() => handleButtonPress(onOpenBossCollection)} 
+            />
+          </div>
+        </div>
       </main>
 
-      {/* Quick Action Grid */}
-      <div className="px-4 pb-3">
-        <div className="grid grid-cols-5 gap-2">
-          <QuickButton icon={Gift} color="accent" onClick={() => handleButtonPress(onOpenDailyReward)} label="Daily" />
-          <QuickButton icon={Target} color="orange" onClick={() => handleButtonPress(onOpenDailyChallenges)} label="Tasks" />
-          <QuickButton icon={Star} color="cyan" onClick={() => handleButtonPress(onOpenBattlePass)} label="Pass" />
-          <QuickButton icon={Swords} color="red" onClick={() => handleButtonPress(onOpenBossCollection)} label="Boss" />
-          <QuickButton icon={Users} color="secondary" onClick={() => handleButtonPress(onOpenFriends)} label="Friends" />
-        </div>
-      </div>
-
       {/* Bottom Navigation */}
-      <nav className="bg-card/80 backdrop-blur-sm border-t border-border/50 px-4 py-2 pb-safe">
+      <nav className="bg-card/90 backdrop-blur-md border-t border-border/50 px-2 py-2 pb-safe">
         <div className="flex justify-around items-center max-w-md mx-auto">
-          <NavButton icon={Trophy} label="Ranks" onClick={() => handleButtonPress(onOpenLeaderboard)} />
-          <NavButton icon={ShoppingBag} label="Shop" onClick={() => handleButtonPress(onOpenShop)} />
-          <NavButton 
-            icon={Crown} 
-            label={isVip ? "VIP" : "Get VIP"} 
-            onClick={() => handleButtonPress(onOpenVip)}
-            highlight={!isVip}
-          />
-          <NavButton icon={BarChart3} label="Stats" onClick={() => handleButtonPress(onOpenStats)} />
-          <NavButton icon={Settings} label="Settings" onClick={() => handleButtonPress(onOpenSettings)} />
+          <NavItem icon={Trophy} label="Ranks" onClick={() => handleButtonPress(onOpenLeaderboard)} />
+          <NavItem icon={ShoppingBag} label="Shop" onClick={() => handleButtonPress(onOpenShop)} />
+          <NavItem icon={Users} label="Friends" onClick={() => handleButtonPress(onOpenFriends)} />
+          <NavItem icon={BarChart3} label="Stats" onClick={() => handleButtonPress(onOpenStats)} />
         </div>
       </nav>
     </div>
   );
 }
 
-interface QuickButtonProps {
+interface FeatureButtonProps {
   icon: React.ElementType;
-  color: string;
-  onClick: () => void;
   label: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  badge?: string;
+  onClick: () => void;
 }
 
-function QuickButton({ icon: Icon, color, onClick, label }: QuickButtonProps) {
-  const colorClasses: Record<string, string> = {
-    accent: 'border-accent/50 hover:bg-accent/20 text-accent',
-    orange: 'border-orange-500/50 hover:bg-orange-500/20 text-orange-500',
-    cyan: 'border-cyan-500/50 hover:bg-cyan-500/20 text-cyan-500',
-    red: 'border-red-500/50 hover:bg-red-500/20 text-red-500',
-    secondary: 'border-secondary/50 hover:bg-secondary/20 text-secondary',
-  };
-
+function FeatureButton({ icon: Icon, label, color, bgColor, borderColor, badge, onClick }: FeatureButtonProps) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center p-3 rounded-xl border bg-card/50 transition-all active:scale-95 min-h-[60px] ${colorClasses[color]}`}
+      className={`relative flex flex-col items-center justify-center p-3 rounded-xl ${bgColor} border ${borderColor} transition-all active:scale-95 min-h-[70px]`}
     >
-      <Icon className="w-6 h-6 mb-1" />
-      <span className="font-pixel text-[7px] text-muted-foreground">{label}</span>
+      {badge && (
+        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-bounce">
+          {badge}
+        </span>
+      )}
+      <Icon className={`w-6 h-6 ${color} mb-1`} />
+      <span className="font-pixel text-[9px] text-muted-foreground">{label}</span>
     </button>
   );
 }
 
-interface NavButtonProps {
+interface NavItemProps {
   icon: React.ElementType;
   label: string;
   onClick: () => void;
-  highlight?: boolean;
+  active?: boolean;
 }
 
-function NavButton({ icon: Icon, label, onClick, highlight }: NavButtonProps) {
+function NavItem({ icon: Icon, label, onClick, active }: NavItemProps) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all active:scale-95 min-w-[56px] ${
-        highlight 
-          ? 'text-yellow-500 bg-yellow-500/10' 
-          : 'text-muted-foreground hover:text-foreground'
+      className={`flex flex-col items-center justify-center p-2 min-w-[60px] rounded-lg transition-all active:scale-95 ${
+        active ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
       }`}
     >
-      <Icon className="w-6 h-6 mb-0.5" />
+      <Icon className="w-5 h-5 mb-0.5" />
       <span className="text-[10px]">{label}</span>
     </button>
   );
