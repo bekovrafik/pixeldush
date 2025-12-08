@@ -333,9 +333,13 @@ export default function Index() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState.isPlaying, gameState.isGameOver, jump, attack, startGame, pauseGame]);
 
-  // Double tap detection for mobile jump
+  // Double tap detection for mobile jump - track if first tap already jumped
   const lastTapTimeRef = useCallback(() => {
     const ref = { current: 0 };
+    return ref;
+  }, [])();
+  const pendingJumpRef = useCallback(() => {
+    const ref = { current: false };
     return ref;
   }, [])();
   
@@ -352,10 +356,18 @@ export default function Index() {
       lastTapTimeRef.current = now;
       
       // Double tap = double jump (tap within 300ms)
-      if (timeSinceLastTap < 300) {
-        jump(); // Second jump for double jump
+      if (timeSinceLastTap < 300 && pendingJumpRef.current) {
+        // This is the second tap of a double-tap - trigger second jump
+        jump();
+        pendingJumpRef.current = false;
       } else {
-        jump(); // First jump
+        // First tap - single jump
+        jump();
+        pendingJumpRef.current = true;
+        // Reset pending after window expires
+        setTimeout(() => {
+          pendingJumpRef.current = false;
+        }, 300);
       }
     }
   }, [gameState.isPlaying, gameState.isGameOver, gameState.isPaused, jump, startGame, showTutorial]);
