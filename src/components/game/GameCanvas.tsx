@@ -304,7 +304,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, [selectedSkin]);
 
-  const drawPlayer = useCallback((ctx: CanvasRenderingContext2D, p: Player) => {
+  const drawPlayer = useCallback((ctx: CanvasRenderingContext2D, p: Player, isFighting: boolean = false) => {
     const colors = SKIN_COLORS[selectedSkin] || SKIN_COLORS.default;
     const bounce = p.isOnGround ? Math.sin(Date.now() / 100) * 2 : 0;
     const y = p.y + bounce;
@@ -326,32 +326,108 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.globalAlpha = 1;
     }
     
+    // Shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
     ctx.ellipse(p.x + p.width / 2, GROUND_Y + 2, p.width / 2, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = colors.body;
-    ctx.fillRect(p.x + 4, y + 8, p.width - 8, p.height - 16);
-    ctx.fillRect(p.x + 2, y, p.width - 4, 14);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(p.x + 18, y + 4, 8, 6);
-    ctx.fillStyle = colors.accent;
-    ctx.fillRect(p.x + 22, y + 4, 4, 6);
-
-    const legOffset = p.isOnGround ? Math.sin(Date.now() / 80) * 4 : 0;
-    ctx.fillStyle = colors.accent;
-    ctx.fillRect(p.x + 6, y + p.height - 10 + legOffset, 8, 10);
-    ctx.fillRect(p.x + p.width - 14, y + p.height - 10 - legOffset, 8, 10);
-
-    if (speed > 7) {
-      ctx.globalAlpha = 0.3;
+    if (isFighting) {
+      // FIGHTING STANCE - Player faces right, ready to fight
+      const fightBounce = Math.sin(Date.now() / 150) * 1.5;
+      const punchFrame = Math.floor(Date.now() / 100) % 20;
+      const isPunching = punchFrame < 5;
+      
+      // Body (slightly crouched fighting pose)
       ctx.fillStyle = colors.body;
-      ctx.fillRect(p.x - 10, y + 10, 8, p.height - 20);
-      ctx.globalAlpha = 0.15;
-      ctx.fillRect(p.x - 20, y + 12, 6, p.height - 24);
-      ctx.globalAlpha = 1;
+      ctx.fillRect(p.x + 4, y + 10 + fightBounce, p.width - 8, p.height - 18);
+      
+      // Head
+      ctx.fillRect(p.x + 2, y + fightBounce, p.width - 4, 14);
+      
+      // Determined eyes (looking right at boss)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(p.x + 18, y + 4 + fightBounce, 10, 6);
+      ctx.fillStyle = colors.accent;
+      ctx.fillRect(p.x + 24, y + 4 + fightBounce, 4, 6);
+      
+      // Front arm (punching arm)
+      if (isPunching) {
+        // Extended punch
+        ctx.fillStyle = colors.body;
+        ctx.fillRect(p.x + p.width - 4, y + 14 + fightBounce, 20, 6);
+        // Fist
+        ctx.fillStyle = colors.accent;
+        ctx.fillRect(p.x + p.width + 14, y + 12 + fightBounce, 8, 10);
+        // Impact lines
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(p.x + p.width + 24, y + 10 + fightBounce);
+        ctx.lineTo(p.x + p.width + 32, y + 6 + fightBounce);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(p.x + p.width + 24, y + 17 + fightBounce);
+        ctx.lineTo(p.x + p.width + 34, y + 17 + fightBounce);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(p.x + p.width + 24, y + 24 + fightBounce);
+        ctx.lineTo(p.x + p.width + 32, y + 28 + fightBounce);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else {
+        // Guard position
+        ctx.fillStyle = colors.body;
+        ctx.fillRect(p.x + p.width - 6, y + 12 + fightBounce, 12, 6);
+        ctx.fillStyle = colors.accent;
+        ctx.fillRect(p.x + p.width + 4, y + 10 + fightBounce, 6, 10);
+      }
+      
+      // Back arm (guard position)
+      ctx.fillStyle = colors.body;
+      ctx.fillRect(p.x - 2, y + 14 + fightBounce, 10, 6);
+      ctx.fillStyle = colors.accent;
+      ctx.fillRect(p.x - 4, y + 12 + fightBounce, 6, 10);
+      
+      // Fighting stance legs (wider, stable)
+      ctx.fillStyle = colors.accent;
+      ctx.fillRect(p.x + 4, y + p.height - 12 + fightBounce, 8, 12);
+      ctx.fillRect(p.x + p.width - 8, y + p.height - 10 + fightBounce, 8, 10);
+      
+      // Energy aura when attacking
+      if (isPunching) {
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = colors.body;
+        ctx.beginPath();
+        ctx.arc(p.x + p.width / 2, y + p.height / 2 + fightBounce, p.width * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    } else {
+      // RUNNING MODE - Original animation
+      ctx.fillStyle = colors.body;
+      ctx.fillRect(p.x + 4, y + 8, p.width - 8, p.height - 16);
+      ctx.fillRect(p.x + 2, y, p.width - 4, 14);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(p.x + 18, y + 4, 8, 6);
+      ctx.fillStyle = colors.accent;
+      ctx.fillRect(p.x + 22, y + 4, 4, 6);
+
+      const legOffset = p.isOnGround ? Math.sin(Date.now() / 80) * 4 : 0;
+      ctx.fillStyle = colors.accent;
+      ctx.fillRect(p.x + 6, y + p.height - 10 + legOffset, 8, 10);
+      ctx.fillRect(p.x + p.width - 14, y + p.height - 10 - legOffset, 8, 10);
+
+      if (speed > 7) {
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = colors.body;
+        ctx.fillRect(p.x - 10, y + 10, 8, p.height - 20);
+        ctx.globalAlpha = 0.15;
+        ctx.fillRect(p.x - 20, y + 12, 6, p.height - 24);
+        ctx.globalAlpha = 1;
+      }
     }
     ctx.restore();
   }, [selectedSkin, speed, drawVipSkinEffects]);
@@ -621,79 +697,184 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       .filter(p => p.alpha > 0);
   }, []);
 
+  // Boss fighter colors - each boss type has unique fighter colors
+  const BOSS_FIGHTER_COLORS: Record<string, { body: string; accent: string; glow: string }> = {
+    mech: { body: '#4A4A4A', accent: '#FF0000', glow: '#FF4444' },
+    dragon: { body: '#8B008B', accent: '#FF6600', glow: '#FF8800' },
+    titan: { body: '#4A0080', accent: '#FFD700', glow: '#FFAA00' },
+  };
+
   const drawBoss = useCallback((ctx: CanvasRenderingContext2D, b: Boss) => {
     const bossConfig = BOSS_CONFIGS.find(c => c.type === b.type);
     if (!bossConfig) return;
 
     ctx.save();
     
-    // Check for boss hit effect (flash white when hit)
     const hitEffect = bossHitEffectRef.current;
     const isHit = hitEffect && (Date.now() - hitEffect.timestamp) < 150;
+    const bossColors = BOSS_FIGHTER_COLORS[b.type] || BOSS_FIGHTER_COLORS.mech;
+    
+    // Fighting stance animation
+    const fightBounce = Math.sin(Date.now() / 120) * 2;
+    const attackFrame = Math.floor(Date.now() / 80) % 30;
+    const isAttackingAnim = b.isAttacking || attackFrame < 8;
     
     // Boss shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.beginPath();
-    ctx.ellipse(b.x + b.width / 2, GROUND_Y + 5, b.width / 2, 10, 0, 0, Math.PI * 2);
+    ctx.ellipse(b.x + b.width / 2, GROUND_Y + 5, b.width / 2 + 10, 12, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    // Boss body glow - intensify when attacking
-    const pulseIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-    const isAttacking = b.isAttacking;
-    ctx.globalAlpha = (isAttacking ? 0.6 : 0.3) * pulseIntensity;
-    ctx.fillStyle = isHit ? '#FFFFFF' : (isAttacking ? '#FF0000' : bossConfig.color);
-    ctx.fillRect(b.x - 15, b.y - 15, b.width + 30, b.height + 30);
+    // Boss aura glow
+    const pulseIntensity = Math.sin(Date.now() / 150) * 0.4 + 0.6;
+    ctx.globalAlpha = (b.isAttacking ? 0.5 : 0.25) * pulseIntensity;
+    ctx.fillStyle = isHit ? '#FFFFFF' : bossColors.glow;
+    ctx.beginPath();
+    ctx.arc(b.x + b.width / 2, b.y + b.height / 2, b.width * 0.8, 0, Math.PI * 2);
+    ctx.fill();
     ctx.globalAlpha = 1;
     
-    // Boss body - flash white when hit
-    ctx.fillStyle = isHit ? '#FFFFFF' : bossConfig.color;
-    ctx.fillRect(b.x, b.y, b.width, b.height);
+    // Scale factor for pixel character boss
+    const scale = b.width / 50;
+    const bx = b.x;
+    const by = b.y + fightBounce;
     
-    // Boss details based on type
+    // Draw boss as pixel fighter character (facing left to face player)
+    // Body
+    ctx.fillStyle = isHit ? '#FFFFFF' : bossColors.body;
+    ctx.fillRect(bx + 10 * scale, by + 20 * scale, b.width - 20 * scale, b.height - 40 * scale);
+    
+    // Head (larger, menacing)
+    ctx.fillRect(bx + 5 * scale, by, b.width - 10 * scale, 25 * scale);
+    
+    // Angry eyes (facing left toward player)
+    ctx.fillStyle = isHit ? '#FFAAAA' : '#FF0000';
+    ctx.fillRect(bx + 8 * scale, by + 8 * scale, 12 * scale, 8 * scale);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(bx + 8 * scale, by + 10 * scale, 6 * scale, 6 * scale);
+    
+    // Boss-specific features
     if (b.type === 'mech') {
-      ctx.fillStyle = isHit ? '#FFAAAA' : '#FF0000';
-      ctx.fillRect(b.x + 15, b.y + 20, 15, 10);
-      ctx.fillRect(b.x + b.width - 30, b.y + 20, 15, 10);
-      ctx.fillStyle = isHit ? '#FFCCCC' : '#AA3333';
-      ctx.fillRect(b.x - 20, b.y + 40, 20, 40);
-      ctx.fillRect(b.x + b.width, b.y + 40, 20, 40);
+      // Mechanical parts
+      ctx.fillStyle = isHit ? '#CCCCCC' : '#666666';
+      ctx.fillRect(bx - 8 * scale, by + 5 * scale, 12 * scale, 15 * scale); // Antenna
+      ctx.fillRect(bx + b.width - 4 * scale, by + 5 * scale, 12 * scale, 15 * scale);
+      // Visor
+      ctx.fillStyle = isHit ? '#FF8888' : '#FF0000';
+      ctx.fillRect(bx + 5 * scale, by + 6 * scale, b.width - 10 * scale, 4 * scale);
+      // Chest core
+      ctx.fillStyle = isHit ? '#FFFFFF' : '#00FFFF';
+      ctx.beginPath();
+      ctx.arc(bx + b.width / 2, by + 35 * scale, 8 * scale, 0, Math.PI * 2);
+      ctx.fill();
     } else if (b.type === 'dragon') {
-      const wingFlap = Math.sin(Date.now() / 150) * 15;
-      ctx.fillStyle = isHit ? '#DDAAFF' : '#7722AA';
+      // Wings
+      const wingFlap = Math.sin(Date.now() / 100) * 12;
+      ctx.fillStyle = isHit ? '#FFAAFF' : '#660066';
       ctx.beginPath();
-      ctx.moveTo(b.x, b.y + 30);
-      ctx.lineTo(b.x - 40, b.y + 10 + wingFlap);
-      ctx.lineTo(b.x, b.y + 60);
+      ctx.moveTo(bx, by + 25 * scale);
+      ctx.lineTo(bx - 35 * scale, by + 10 * scale + wingFlap);
+      ctx.lineTo(bx - 25 * scale, by + 45 * scale);
       ctx.closePath();
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(b.x + b.width, b.y + 30);
-      ctx.lineTo(b.x + b.width + 40, b.y + 10 - wingFlap);
-      ctx.lineTo(b.x + b.width, b.y + 60);
+      ctx.moveTo(bx + b.width, by + 25 * scale);
+      ctx.lineTo(bx + b.width + 35 * scale, by + 10 * scale - wingFlap);
+      ctx.lineTo(bx + b.width + 25 * scale, by + 45 * scale);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = isHit ? '#FFFFAA' : '#FFFF00';
+      // Horns
+      ctx.fillStyle = isHit ? '#FFFFAA' : '#FFD700';
       ctx.beginPath();
-      ctx.arc(b.x + 25, b.y + 25, 8, 0, Math.PI * 2);
+      ctx.moveTo(bx + 8 * scale, by);
+      ctx.lineTo(bx - 5 * scale, by - 20 * scale);
+      ctx.lineTo(bx + 18 * scale, by);
+      ctx.closePath();
       ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx + b.width - 8 * scale, by);
+      ctx.lineTo(bx + b.width + 5 * scale, by - 20 * scale);
+      ctx.lineTo(bx + b.width - 18 * scale, by);
+      ctx.closePath();
+      ctx.fill();
+      // Fire breath effect when attacking
+      if (b.isAttacking) {
+        ctx.fillStyle = '#FF6600';
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(bx, by + 15 * scale);
+        ctx.lineTo(bx - 40 * scale, by + 10 * scale);
+        ctx.lineTo(bx - 30 * scale, by + 20 * scale);
+        ctx.lineTo(bx, by + 20 * scale);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
     } else if (b.type === 'titan') {
+      // Crown spikes
       ctx.fillStyle = isHit ? '#FFFFAA' : '#FFD700';
       for (let i = 0; i < 5; i++) {
         ctx.beginPath();
-        ctx.moveTo(b.x + 10 + i * 25, b.y);
-        ctx.lineTo(b.x + 22 + i * 25, b.y - 20);
-        ctx.lineTo(b.x + 35 + i * 25, b.y);
+        ctx.moveTo(bx + (8 + i * 18) * scale, by);
+        ctx.lineTo(bx + (14 + i * 18) * scale, by - 18 * scale);
+        ctx.lineTo(bx + (20 + i * 18) * scale, by);
         ctx.closePath();
         ctx.fill();
       }
-      ctx.fillStyle = isHit ? '#FF8888' : '#8B0000';
-      ctx.fillRect(b.x + 30, b.y + 30, 20, 15);
-      ctx.fillRect(b.x + b.width - 50, b.y + 30, 20, 15);
+      // Cosmic eye
+      ctx.fillStyle = isHit ? '#FFFFFF' : '#9400D3';
+      ctx.beginPath();
+      ctx.arc(bx + b.width / 2, by + 12 * scale, 10 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(bx + b.width / 2, by + 12 * scale, 5 * scale, 0, Math.PI * 2);
+      ctx.fill();
     }
     
-    // Draw projectiles with enhanced effects
+    // Arms (pixel fighter style)
+    if (isAttackingAnim) {
+      // Attacking arm extended toward player
+      ctx.fillStyle = isHit ? '#FFFFFF' : bossColors.body;
+      ctx.fillRect(bx - 25 * scale, by + 28 * scale, 30 * scale, 10 * scale);
+      ctx.fillStyle = isHit ? '#FFAAAA' : bossColors.accent;
+      ctx.fillRect(bx - 32 * scale, by + 25 * scale, 12 * scale, 16 * scale); // Fist
+      // Attack energy
+      ctx.fillStyle = bossColors.glow;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(bx - 35 * scale, by + 33 * scale, 12 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else {
+      // Guard position
+      ctx.fillStyle = isHit ? '#FFFFFF' : bossColors.body;
+      ctx.fillRect(bx - 8 * scale, by + 25 * scale, 15 * scale, 10 * scale);
+      ctx.fillStyle = isHit ? '#FFAAAA' : bossColors.accent;
+      ctx.fillRect(bx - 12 * scale, by + 22 * scale, 10 * scale, 16 * scale);
+    }
+    // Back arm
+    ctx.fillStyle = isHit ? '#FFFFFF' : bossColors.body;
+    ctx.fillRect(bx + b.width - 8 * scale, by + 28 * scale, 15 * scale, 8 * scale);
+    
+    // Legs (fighting stance - wider)
+    ctx.fillStyle = isHit ? '#CCCCCC' : bossColors.accent;
+    ctx.fillRect(bx + 8 * scale, by + b.height - 25 * scale, 14 * scale, 25 * scale);
+    ctx.fillRect(bx + b.width - 22 * scale, by + b.height - 22 * scale, 14 * scale, 22 * scale);
+    
+    // Phase 2 indicator - power aura
+    if (b.phase >= 2) {
+      ctx.strokeStyle = bossColors.glow;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 100) * 0.3;
+      ctx.beginPath();
+      ctx.arc(bx + b.width / 2, by + b.height / 2, b.width * 0.7 + Math.sin(Date.now() / 150) * 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    
+    // Draw projectiles
     b.projectiles.forEach(p => {
-      // Projectile glow
       ctx.save();
       ctx.shadowColor = p.type === 'laser' ? '#FF0000' : p.type === 'fireball' ? '#FF6600' : '#FFFF00';
       ctx.shadowBlur = 15;
@@ -703,14 +884,12 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.ellipse(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, p.height / 2, 0, 0, Math.PI * 2);
       ctx.fill();
       
-      // Enhanced projectile trail
+      // Trail
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 0.6;
       ctx.fillRect(p.x + p.width, p.y + p.height / 4, 25, p.height / 2);
-      ctx.globalAlpha = 0.4;
-      ctx.fillRect(p.x + p.width + 25, p.y + p.height / 3, 20, p.height / 3);
-      ctx.globalAlpha = 0.2;
-      ctx.fillRect(p.x + p.width + 45, p.y + p.height / 3, 15, p.height / 3);
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(p.x + p.width + 25, p.y + p.height / 3, 15, p.height / 3);
       ctx.restore();
     });
     
@@ -1867,8 +2046,9 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     // Draw double jump trail behind player
     drawDoubleJumpTrail(ctx, player);
     
-    // Draw player
-    drawPlayer(ctx, player);
+    // Draw player (fighting stance when boss is active)
+    const isFightingBoss = !!boss || (bossArena?.isActive && bossArena.bossesDefeated.length < 3);
+    drawPlayer(ctx, player, isFightingBoss);
     
     // Draw boss and particles AFTER player (in front)
     if (boss) {
