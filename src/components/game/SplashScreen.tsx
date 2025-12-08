@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import gameLogo from '@/assets/game-logo.png';
+import { PixelCharacter } from './PixelCharacter';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -59,7 +60,7 @@ export function SplashScreen({ onComplete, minDuration = 2500 }: SplashScreenPro
           <img
             src={gameLogo}
             alt="Pixel Runner"
-            className="w-[320px] md:w-[480px] h-auto drop-shadow-2xl"
+            className="w-[280px] md:w-[400px] h-auto drop-shadow-2xl"
             style={{
               filter: 'drop-shadow(0 0 30px hsl(var(--primary) / 0.5))',
             }}
@@ -68,14 +69,26 @@ export function SplashScreen({ onComplete, minDuration = 2500 }: SplashScreenPro
           {/* Shine effect */}
           <div
             className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-shine"
-            style={{
-              animation: 'shine 2s ease-in-out infinite',
-            }}
+          />
+        </div>
+
+        {/* Animated character running */}
+        <div className="mt-6 relative">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div 
+              className="w-24 h-24 rounded-full bg-primary/20 blur-xl animate-pulse"
+            />
+          </div>
+          <PixelCharacter 
+            animation="running" 
+            size={72} 
+            showGlow 
+            showTrail
           />
         </div>
 
         {/* Loading bar */}
-        <div className="mt-8 w-48 h-2 bg-muted/50 rounded-full overflow-hidden border border-border/30">
+        <div className="mt-6 w-48 h-2 bg-muted/50 rounded-full overflow-hidden border border-border/30">
           <div
             className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full transition-all duration-100 relative"
             style={{ width: `${progress}%` }}
