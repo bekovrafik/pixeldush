@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Crown, Check, Sparkles, Zap, Shield, Coins, Ban, Star, Loader2, Settings, Gift, BarChart3, Shirt } from 'lucide-react';
+import { Crown, Check, Sparkles, Zap, Shield, Coins, Ban, Star, Loader2, Settings, Gift, BarChart3, Shirt, Calendar } from 'lucide-react';
 import { VipStatsCard } from './VipStatsCard';
 import { VipSkinsSection } from './VipSkinsSection';
 import { VipStats } from '@/hooks/useVipStats';
 import { CharacterSkin } from '@/types/game';
+import { SUBSCRIPTIONS, purchaseManager } from '@/lib/purchaseManager';
+import { Capacitor } from '@capacitor/core';
+import { toast } from 'sonner';
 
 interface VipModalProps {
   isOpen: boolean;
@@ -32,6 +35,7 @@ interface VipModalProps {
   onStartCheckout: () => void;
   onOpenPortal: () => void;
   onOpenAuth: () => void;
+  onPurchaseComplete?: () => void;
 }
 
 type VipTab = 'benefits' | 'stats' | 'skins';
@@ -70,8 +74,15 @@ export function VipModal({
   onStartCheckout,
   onOpenPortal,
   onOpenAuth,
+  onPurchaseComplete,
 }: VipModalProps) {
   const [activeTab, setActiveTab] = useState<VipTab>('benefits');
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
+  const [purchasing, setPurchasing] = useState(false);
+
+  const isNative = Capacitor.isNativePlatform();
+  const monthlyPlan = SUBSCRIPTIONS.find(s => s.period === 'monthly');
+  const yearlyPlan = SUBSCRIPTIONS.find(s => s.period === 'yearly');
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -92,6 +103,47 @@ export function VipModal({
       onSelectSkin(skinId);
     }
   };
+
+  const handlePurchase = async () => {
+    if (!isLoggedIn) {
+      onOpenAuth();
+      return;
+    }
+
+    // Use RevenueCat for native platforms
+    if (isNative) {
+      setPurchasing(true);
+      try {
+        const subscription = selectedPlan === 'monthly' ? monthlyPlan : yearlyPlan;
+        if (!subscription) {
+          toast.error('Subscription plan not found');
+          return;
+        }
+
+        const result = await purchaseManager.purchaseSubscription(subscription.productId);
+        
+        if (result.success) {
+          toast.success('🎉 Welcome to VIP! Enjoy your benefits!');
+          onPurchaseComplete?.();
+          onClose();
+        } else if (result.error && result.error !== 'Purchase cancelled') {
+          toast.error(result.error);
+        }
+      } catch (error) {
+        console.error('Purchase error:', error);
+        toast.error('Failed to process purchase. Please try again.');
+      } finally {
+        setPurchasing(false);
+      }
+    } else {
+      // Use Stripe for web
+      onStartCheckout();
+    }
+  };
+
+  const yearlySavings = monthlyPlan && yearlyPlan ? 
+    Math.round((parseFloat(monthlyPlan.price.replace(/[^0-9.]/g, '')) * 12 - parseFloat(yearlyPlan.price.replace(/[^0-9.]/g, ''))) / (parseFloat(monthlyPlan.price.replace(/[^0-9.]/g, '')) * 12) * 100) : 
+    40;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -265,13 +317,66 @@ export function VipModal({
                 <div className="relative text-center">
                   <Crown className="w-12 h-12 text-accent mx-auto mb-2" />
                   <h3 className="font-pixel text-lg text-foreground mb-1">Become VIP</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
+                  <p className="text-sm text-muted-foreground">
                     Unlock exclusive rewards and dominate the game!
                   </p>
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="font-pixel text-2xl text-accent">$4.99</span>
-                    <span className="text-sm text-muted-foreground">/month</span>
-                  </div>
+                </div>
+              </div>
+
+              {/* Plan Selection */}
+              <div className="space-y-2">
+                <h3 className="font-pixel text-xs text-muted-foreground">CHOOSE YOUR PLAN</h3>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Monthly Plan */}
+                  <button
+                    onClick={() => setSelectedPlan('monthly')}
+                    className={`relative p-3 rounded-lg border-2 transition-all text-left ${
+                      selectedPlan === 'monthly'
+                        ? 'border-accent bg-accent/10'
+                        : 'border-border/50 bg-muted/20 hover:border-border'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="font-pixel text-[9px] text-muted-foreground">MONTHLY</span>
+                    </div>
+                    <p className="font-pixel text-base text-foreground">$4.99</p>
+                    <p className="text-[9px] text-muted-foreground">per month</p>
+                    {selectedPlan === 'monthly' && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="w-4 h-4 text-accent" />
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Yearly Plan */}
+                  <button
+                    onClick={() => setSelectedPlan('yearly')}
+                    className={`relative p-3 rounded-lg border-2 transition-all text-left ${
+                      selectedPlan === 'yearly'
+                        ? 'border-accent bg-accent/10'
+                        : 'border-border/50 bg-muted/20 hover:border-border'
+                    }`}
+                  >
+                    {/* Best Value Badge */}
+                    <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-green-500 rounded text-[7px] font-pixel text-white">
+                      SAVE {yearlySavings}%
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="font-pixel text-[9px] text-muted-foreground">YEARLY</span>
+                    </div>
+                    <p className="font-pixel text-base text-foreground">$29.99</p>
+                    <p className="text-[9px] text-muted-foreground">per year</p>
+                    <p className="text-[8px] text-green-400 mt-0.5">+ 5000 bonus coins!</p>
+                    {selectedPlan === 'yearly' && (
+                      <div className="absolute top-2 right-2 mt-4">
+                        <Check className="w-4 h-4 text-accent" />
+                      </div>
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -290,18 +395,39 @@ export function VipModal({
                 ))}
               </div>
 
+              {/* Yearly Exclusive Benefits */}
+              {selectedPlan === 'yearly' && (
+                <div className="p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30">
+                  <h4 className="font-pixel text-xs text-green-400 mb-2">YEARLY EXCLUSIVE</h4>
+                  <ul className="space-y-1 text-[10px] text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3 h-3 text-green-400" />
+                      5000 bonus coins on purchase
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3 h-3 text-green-400" />
+                      Exclusive yearly badge
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3 h-3 text-green-400" />
+                      Save {yearlySavings}% compared to monthly
+                    </li>
+                  </ul>
+                </div>
+              )}
+
               {isLoggedIn ? (
                 <Button 
-                  onClick={onStartCheckout} 
+                  onClick={handlePurchase} 
                   className="w-full font-pixel text-sm gap-2 bg-gradient-to-r from-accent to-yellow-500 hover:from-accent/90 hover:to-yellow-500/90"
-                  disabled={checkoutLoading}
+                  disabled={checkoutLoading || purchasing}
                 >
-                  {checkoutLoading ? (
+                  {checkoutLoading || purchasing ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Crown className="w-4 h-4" />
                   )}
-                  {checkoutLoading ? 'LOADING...' : 'SUBSCRIBE NOW'}
+                  {checkoutLoading || purchasing ? 'LOADING...' : `SUBSCRIBE ${selectedPlan.toUpperCase()}`}
                 </Button>
               ) : (
                 <div className="p-3 rounded-lg bg-muted/50 text-center">
@@ -315,7 +441,7 @@ export function VipModal({
               )}
 
               <p className="text-[9px] text-muted-foreground text-center">
-                Cancel anytime. Subscription auto-renews monthly.
+                Cancel anytime. Subscription auto-renews. Managed via {isNative ? 'App Store / Play Store' : 'Stripe'}.
               </p>
             </div>
           </ScrollArea>
