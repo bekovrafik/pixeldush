@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { hapticsManager } from '@/lib/hapticsManager';
 
 interface MobileControlsProps {
   onJump: () => void;
@@ -22,12 +23,14 @@ export function MobileControls({
   const handleJumpStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    hapticsManager.lightImpact();
     onJump();
   }, [onJump]);
 
   const handleAttackStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    hapticsManager.mediumImpact();
     onAttack();
   }, [onAttack]);
 
@@ -47,14 +50,14 @@ export function MobileControls({
         <button
           onTouchStart={handleJumpStart}
           onMouseDown={handleJumpStart}
-          className="pointer-events-auto relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-primary/80 active:bg-primary active:scale-95 transition-all shadow-lg border-4 border-primary-foreground/30 flex flex-col items-center justify-center touch-none select-none"
+          className="pointer-events-auto relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-primary/80 active:bg-primary active:scale-95 transition-all shadow-lg border-4 border-primary-foreground/30 flex flex-col items-center justify-center touch-none select-none"
           style={{ WebkitTapHighlightColor: 'transparent' }}
         >
-          <span className="font-pixel text-primary-foreground text-xs sm:text-sm">JUMP</span>
+          <span className="font-pixel text-primary-foreground text-sm sm:text-base">JUMP</span>
           {/* Double jump indicator */}
           {doubleJumpAvailable && !hasDoubleJumped && (
-            <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-accent flex items-center justify-center animate-pulse">
-              <span className="text-xs font-bold text-accent-foreground">2x</span>
+            <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-accent flex items-center justify-center animate-pulse shadow-lg">
+              <span className="text-sm font-bold text-accent-foreground">2x</span>
             </div>
           )}
           {/* Visual feedback ring */}
@@ -66,17 +69,17 @@ export function MobileControls({
           <button
             onTouchStart={handleAttackStart}
             onMouseDown={handleAttackStart}
-            className="pointer-events-auto relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-destructive/80 active:bg-destructive active:scale-95 transition-all shadow-lg border-4 border-destructive-foreground/30 flex flex-col items-center justify-center touch-none select-none"
+            className="pointer-events-auto relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-destructive/80 active:bg-destructive active:scale-95 transition-all shadow-lg border-4 border-destructive-foreground/30 flex flex-col items-center justify-center touch-none select-none"
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <span className="text-2xl">{getWeaponEmoji()}</span>
-            <span className="font-pixel text-destructive-foreground text-[8px] sm:text-xs mt-1">
+            <span className="text-3xl">{getWeaponEmoji()}</span>
+            <span className="font-pixel text-destructive-foreground text-xs sm:text-sm mt-1">
               {activeWeapon ? `${weaponAmmo}` : 'FIRE'}
             </span>
             {/* Weapon ammo indicator */}
             {activeWeapon && weaponAmmo > 0 && (
-              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-accent flex items-center justify-center">
-                <span className="text-xs font-bold text-accent-foreground">{weaponAmmo}</span>
+              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-accent flex items-center justify-center shadow-lg">
+                <span className="text-sm font-bold text-accent-foreground">{weaponAmmo}</span>
               </div>
             )}
           </button>
