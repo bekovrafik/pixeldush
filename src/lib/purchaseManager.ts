@@ -11,18 +11,16 @@ export interface CoinPack {
 }
 
 export interface PremiumSkin {
-  id: string;
+  id: string;           // RevenueCat product ID
+  skinId: string;       // Database character_skins ID
   name: string;
   description: string;
   productId: string;
   price: string;
   badge?: 'popular' | 'best_value' | 'new';
-  previewColors: string[]; // Gradient colors for preview
-  iconEmoji: string;
 }
 
 // Define your product IDs (must match RevenueCat/App Store/Play Store)
-// These will be updated with actual prices from RevenueCat when available
 export const COIN_PACKS: CoinPack[] = [
   { id: 'coins_100', name: 'Starter Pack', coins: 100, price: '$0.99', productId: 'coins_100' },
   { id: 'coins_500', name: 'Value Pack', coins: 500, price: '$3.99', productId: 'coins_500', popular: true },
@@ -30,45 +28,42 @@ export const COIN_PACKS: CoinPack[] = [
   { id: 'coins_5000', name: 'Ultimate Pack', coins: 5000, price: '$24.99', productId: 'coins_5000' },
 ];
 
+// Premium skins - skinId must match character_skins table in database
 export const PREMIUM_SKINS: PremiumSkin[] = [
   { 
-    id: 'skin_golden', 
-    name: 'Golden Runner', 
-    description: 'Shimmering gold character', 
-    productId: 'skin_golden', 
-    price: '$2.99',
+    id: 'skin_cosmic_guardian', 
+    skinId: 'cosmic_guardian',
+    name: 'Cosmic Guardian', 
+    description: 'Stellar power from distant galaxies', 
+    productId: 'skin_cosmic_guardian', 
+    price: '$4.99',
     badge: 'popular',
-    previewColors: ['#FFD700', '#FFA500', '#FF8C00'],
-    iconEmoji: '✨'
   },
   { 
-    id: 'skin_neon', 
-    name: 'Neon Blaze', 
-    description: 'Glowing neon effects', 
-    productId: 'skin_neon', 
-    price: '$2.99',
+    id: 'skin_frost_queen', 
+    skinId: 'frost_queen',
+    name: 'Frost Queen', 
+    description: 'Command the power of ice', 
+    productId: 'skin_frost_queen', 
+    price: '$3.99',
     badge: 'new',
-    previewColors: ['#00FFFF', '#FF00FF', '#00FF00'],
-    iconEmoji: '💫'
   },
   { 
-    id: 'skin_robot', 
-    name: 'Mech Warrior', 
-    description: 'Futuristic robot skin', 
-    productId: 'skin_robot', 
-    price: '$4.99',
-    previewColors: ['#708090', '#C0C0C0', '#4682B4'],
-    iconEmoji: '🤖'
+    id: 'skin_thunder_lord', 
+    skinId: 'thunder_lord',
+    name: 'Thunder Lord', 
+    description: 'Harness the storm\'s fury', 
+    productId: 'skin_thunder_lord', 
+    price: '$5.99',
   },
   { 
-    id: 'skin_dragon', 
-    name: 'Dragon Spirit', 
-    description: 'Legendary dragon form', 
-    productId: 'skin_dragon', 
-    price: '$4.99',
+    id: 'skin_phoenix', 
+    skinId: 'phoenix',
+    name: 'Phoenix Flame', 
+    description: 'Rise from the ashes', 
+    productId: 'skin_phoenix', 
+    price: '$7.99',
     badge: 'best_value',
-    previewColors: ['#FF4500', '#8B0000', '#FF6347'],
-    iconEmoji: '🐉'
   },
 ];
 
