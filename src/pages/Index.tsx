@@ -48,6 +48,7 @@ import { useVipDailyBonus } from '@/hooks/useVipDailyBonus';
 import { useVipUsers } from '@/hooks/useVipUsers';
 import { useVipStats } from '@/hooks/useVipStats';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useStripeCheckout, usePaymentSuccess } from '@/hooks/useStripeCheckout';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
 import { hapticsManager } from '@/lib/hapticsManager';
@@ -105,6 +106,36 @@ export default function Index() {
   const { canClaim: canClaimVipBonus, currentDay: vipBonusDay, bonusCoins: vipBonusCoins, allBonuses: allVipBonuses, claimBonus: claimVipBonus, refreshStatus: refreshVipBonus } = useVipDailyBonus(profile?.id || null, isVip);
   const { vipProfileIds } = useVipUsers();
   const { stats: vipStats, getCurrentTierInfo, getNextTierInfo, getMonthsUntilNextTier, addBonusCoinsEarned, incrementReviveUsed } = useVipStats(profile?.id || null, isVip);
+
+  // Stripe checkout hook for web payments
+  const { fulfillPurchase, isWebPlatform } = useStripeCheckout();
+
+  // Handle payment success from Stripe redirect
+  usePaymentSuccess(useCallback(async (type: string, data: any) => {
+    console.log('[PaymentSuccess] Processing:', type, data);
+    
+    if (type === 'coins') {
+      const result = await fulfillPurchase({ productId: data.productId, coins: String(data.coins) });
+      if (result.success) {
+        toast.success(`+${data.coins} coins added!`, { description: 'Purchase successful' });
+        refreshProfile();
+      } else {
+        toast.error('Failed to add coins', { description: result.error });
+      }
+    } else if (type === 'skin') {
+      const result = await fulfillPurchase({ productId: data.productId, skinId: data.skinId });
+      if (result.success) {
+        toast.success('Skin unlocked!', { description: 'Check your collection' });
+        refetchSkins();
+      } else {
+        toast.error('Failed to unlock skin', { description: result.error });
+      }
+    } else if (type === 'vip') {
+      toast.success('VIP subscription activated!', { description: 'Enjoy your benefits!' });
+      refreshVipStatus();
+      refreshProfile();
+    }
+  }, [fulfillPurchase, refreshProfile, refetchSkins, refreshVipStatus]));
 
   // Track if VIP welcome has been shown this session
   const [vipWelcomeShown, setVipWelcomeShown] = useState(false);
