@@ -165,7 +165,7 @@ export default function Index() {
   };
 
   // Screen shake hook
-  const { shakeOffset, shakeOnDamage, shakeOnBossDefeat, shakeOnHit } = useScreenShake();
+  const { shakeOffset, shakeOnDamage, shakeOnBossDefeat, shakeOnHit, shakeOnBossHit } = useScreenShake();
   
   // Power-up effects hook
   const { screenFlash, explosions: powerUpExplosions, triggerPowerUpCollection, updateExplosions } = usePowerUpEffects();
@@ -186,6 +186,10 @@ export default function Index() {
     onPlayerHit: () => {
       shakeOnHit();
       hapticsManager.warningNotification();
+    },
+    onBossHit: () => {
+      shakeOnBossHit();
+      hapticsManager.lightImpact();
     },
     onPowerUpCollect: (type, x, y) => {
       triggerPowerUpCollection(x, y, type as any);

@@ -4,6 +4,12 @@ import { Boss, BOSS_CONFIGS, BossArenaState, ARENA_BOSS_SEQUENCE } from '@/types
 import { ScreenFlash, PowerUpExplosion } from '@/hooks/usePowerUpEffects';
 import { BossIntroState } from '@/hooks/useBossIntro';
 
+interface BossHitEffect {
+  timestamp: number;
+  intensity: number;
+  isDefeat: boolean;
+}
+
 interface GameCanvasProps {
   player: Player;
   obstacles: Obstacle[];
@@ -62,6 +68,9 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
   const groundOffsetRef = useRef(0);
   const trailPositionsRef = useRef<{x: number, y: number}[]>([]);
   const doubleJumpTrailRef = useRef<{x: number, y: number, alpha: number, size: number}[]>([]);
+  const prevBossHealthRef = useRef<number | null>(null);
+  const bossHitEffectRef = useRef<BossHitEffect | null>(null);
+  const bossDefeatParticlesRef = useRef<{x: number, y: number, vx: number, vy: number, size: number, color: string, life: number}[]>([]);
 
   const worldConfig = WORLD_CONFIGS[world];
 
@@ -575,37 +584,39 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
     ctx.save();
     
+    // Check for boss hit effect (flash white when hit)
+    const hitEffect = bossHitEffectRef.current;
+    const isHit = hitEffect && (Date.now() - hitEffect.timestamp) < 150;
+    
     // Boss shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
     ctx.beginPath();
     ctx.ellipse(b.x + b.width / 2, GROUND_Y + 5, b.width / 2, 10, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    // Boss body glow
+    // Boss body glow - intensify when attacking
     const pulseIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-    ctx.globalAlpha = 0.3 * pulseIntensity;
-    ctx.fillStyle = bossConfig.color;
-    ctx.fillRect(b.x - 10, b.y - 10, b.width + 20, b.height + 20);
+    const isAttacking = b.isAttacking;
+    ctx.globalAlpha = (isAttacking ? 0.6 : 0.3) * pulseIntensity;
+    ctx.fillStyle = isHit ? '#FFFFFF' : (isAttacking ? '#FF0000' : bossConfig.color);
+    ctx.fillRect(b.x - 15, b.y - 15, b.width + 30, b.height + 30);
     ctx.globalAlpha = 1;
     
-    // Boss body
-    ctx.fillStyle = bossConfig.color;
+    // Boss body - flash white when hit
+    ctx.fillStyle = isHit ? '#FFFFFF' : bossConfig.color;
     ctx.fillRect(b.x, b.y, b.width, b.height);
     
     // Boss details based on type
     if (b.type === 'mech') {
-      // Mech eyes
-      ctx.fillStyle = '#FF0000';
+      ctx.fillStyle = isHit ? '#FFAAAA' : '#FF0000';
       ctx.fillRect(b.x + 15, b.y + 20, 15, 10);
       ctx.fillRect(b.x + b.width - 30, b.y + 20, 15, 10);
-      // Mech arms
-      ctx.fillStyle = '#AA3333';
+      ctx.fillStyle = isHit ? '#FFCCCC' : '#AA3333';
       ctx.fillRect(b.x - 20, b.y + 40, 20, 40);
       ctx.fillRect(b.x + b.width, b.y + 40, 20, 40);
     } else if (b.type === 'dragon') {
-      // Dragon wings
       const wingFlap = Math.sin(Date.now() / 150) * 15;
-      ctx.fillStyle = '#7722AA';
+      ctx.fillStyle = isHit ? '#DDAAFF' : '#7722AA';
       ctx.beginPath();
       ctx.moveTo(b.x, b.y + 30);
       ctx.lineTo(b.x - 40, b.y + 10 + wingFlap);
@@ -618,14 +629,12 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.lineTo(b.x + b.width, b.y + 60);
       ctx.closePath();
       ctx.fill();
-      // Dragon eyes
-      ctx.fillStyle = '#FFFF00';
+      ctx.fillStyle = isHit ? '#FFFFAA' : '#FFFF00';
       ctx.beginPath();
       ctx.arc(b.x + 25, b.y + 25, 8, 0, Math.PI * 2);
       ctx.fill();
     } else if (b.type === 'titan') {
-      // Titan crown
-      ctx.fillStyle = '#FFD700';
+      ctx.fillStyle = isHit ? '#FFFFAA' : '#FFD700';
       for (let i = 0; i < 5; i++) {
         ctx.beginPath();
         ctx.moveTo(b.x + 10 + i * 25, b.y);
@@ -634,41 +643,180 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
         ctx.closePath();
         ctx.fill();
       }
-      // Titan face
-      ctx.fillStyle = '#8B0000';
+      ctx.fillStyle = isHit ? '#FF8888' : '#8B0000';
       ctx.fillRect(b.x + 30, b.y + 30, 20, 15);
       ctx.fillRect(b.x + b.width - 50, b.y + 30, 20, 15);
     }
     
-    // Health bar
-    const healthBarWidth = b.width;
-    const healthBarHeight = 8;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(b.x, b.y - 20, healthBarWidth, healthBarHeight);
-    ctx.fillStyle = b.health > b.maxHealth / 2 ? '#00FF00' : b.health > b.maxHealth / 4 ? '#FFFF00' : '#FF0000';
-    ctx.fillRect(b.x, b.y - 20, (b.health / b.maxHealth) * healthBarWidth, healthBarHeight);
-    
-    // Boss name
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '10px "Press Start 2P", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(bossConfig.name, b.x + b.width / 2, b.y - 25);
-    
-    // Draw projectiles
+    // Draw projectiles with enhanced effects
     b.projectiles.forEach(p => {
+      // Projectile glow
+      ctx.save();
+      ctx.shadowColor = p.type === 'laser' ? '#FF0000' : p.type === 'fireball' ? '#FF6600' : '#FFFF00';
+      ctx.shadowBlur = 15;
+      
       ctx.fillStyle = p.type === 'laser' ? '#FF0000' : p.type === 'fireball' ? '#FF6600' : '#FFFF00';
       ctx.beginPath();
       ctx.ellipse(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, p.height / 2, 0, 0, Math.PI * 2);
       ctx.fill();
-      // Projectile trail
-      ctx.globalAlpha = 0.5;
-      ctx.fillRect(p.x + p.width, p.y + p.height / 4, 20, p.height / 2);
-      ctx.globalAlpha = 0.25;
-      ctx.fillRect(p.x + p.width + 20, p.y + p.height / 3, 15, p.height / 3);
-      ctx.globalAlpha = 1;
+      
+      // Enhanced projectile trail
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(p.x + p.width, p.y + p.height / 4, 25, p.height / 2);
+      ctx.globalAlpha = 0.4;
+      ctx.fillRect(p.x + p.width + 25, p.y + p.height / 3, 20, p.height / 3);
+      ctx.globalAlpha = 0.2;
+      ctx.fillRect(p.x + p.width + 45, p.y + p.height / 3, 15, p.height / 3);
+      ctx.restore();
     });
     
     ctx.restore();
+  }, []);
+
+  // Draw prominent boss health bar at top of screen
+  const drawBossHealthBar = useCallback((ctx: CanvasRenderingContext2D, b: Boss) => {
+    const bossConfig = BOSS_CONFIGS.find(c => c.type === b.type);
+    if (!bossConfig) return;
+
+    ctx.save();
+    
+    const healthPercent = b.health / b.maxHealth;
+    const barWidth = 400;
+    const barHeight = 24;
+    const barX = (CANVAS_WIDTH - barWidth) / 2;
+    const barY = 85;
+    
+    // Detect if boss was just hit
+    if (prevBossHealthRef.current !== null && b.health < prevBossHealthRef.current) {
+      bossHitEffectRef.current = { timestamp: Date.now(), intensity: 1, isDefeat: b.health <= 0 };
+    }
+    prevBossHealthRef.current = b.health;
+    
+    const hitEffect = bossHitEffectRef.current;
+    const hitElapsed = hitEffect ? Date.now() - hitEffect.timestamp : 1000;
+    const isRecentHit = hitElapsed < 300;
+    
+    // Background with damage shake effect
+    const shakeX = isRecentHit ? (Math.random() - 0.5) * 4 : 0;
+    const shakeY = isRecentHit ? (Math.random() - 0.5) * 2 : 0;
+    
+    // Outer glow based on boss health
+    ctx.shadowColor = healthPercent > 0.5 ? '#00FF00' : healthPercent > 0.25 ? '#FFFF00' : '#FF0000';
+    ctx.shadowBlur = isRecentHit ? 20 : 10;
+    
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.beginPath();
+    ctx.roundRect(barX - 10 + shakeX, barY - 25 + shakeY, barWidth + 20, barHeight + 50, 8);
+    ctx.fill();
+    
+    // Border with color based on phase
+    ctx.strokeStyle = b.phase === 2 ? '#FF4444' : '#FFD700';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(barX - 10 + shakeX, barY - 25 + shakeY, barWidth + 20, barHeight + 50, 8);
+    ctx.stroke();
+    
+    ctx.shadowBlur = 0;
+    
+    // Boss name with icon
+    const bossIcon = b.type === 'mech' ? '🤖' : b.type === 'dragon' ? '🐉' : '👑';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${bossIcon} ${bossConfig.name} ${bossIcon}`, CANVAS_WIDTH / 2 + shakeX, barY - 8 + shakeY);
+    
+    // Health bar background
+    ctx.fillStyle = 'rgba(60, 0, 0, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect(barX + shakeX, barY + shakeY, barWidth, barHeight, 4);
+    ctx.fill();
+    
+    // Health bar fill with gradient
+    if (healthPercent > 0) {
+      const gradient = ctx.createLinearGradient(barX, 0, barX + barWidth * healthPercent, 0);
+      if (healthPercent > 0.5) {
+        gradient.addColorStop(0, '#00AA00');
+        gradient.addColorStop(1, '#00FF00');
+      } else if (healthPercent > 0.25) {
+        gradient.addColorStop(0, '#CC8800');
+        gradient.addColorStop(1, '#FFCC00');
+      } else {
+        gradient.addColorStop(0, '#880000');
+        gradient.addColorStop(1, '#FF0000');
+      }
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(barX + shakeX, barY + shakeY, barWidth * healthPercent, barHeight, 4);
+      ctx.fill();
+      
+      // Animated shine on health bar
+      const shinePos = ((Date.now() / 15) % (barWidth + 50)) - 25;
+      if (shinePos < barWidth * healthPercent) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(barX + shakeX, barY + shakeY, barWidth * healthPercent, barHeight);
+        ctx.clip();
+        const shineGradient = ctx.createLinearGradient(shinePos - 15, 0, shinePos + 35, 0);
+        shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
+        shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = shineGradient;
+        ctx.fillRect(shinePos + shakeX, barY + shakeY, 50, barHeight);
+        ctx.restore();
+      }
+    }
+    
+    // Health text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.ceil(healthPercent * 100)}%`, CANVAS_WIDTH / 2 + shakeX, barY + 16 + shakeY);
+    
+    // Phase indicator and attack status
+    ctx.textAlign = 'left';
+    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.fillStyle = b.phase === 2 ? '#FF4444' : '#AAAAAA';
+    ctx.fillText(`PHASE ${b.phase}`, barX + shakeX, barY + 38 + shakeY);
+    
+    // Attack indicator
+    ctx.textAlign = 'right';
+    if (b.isAttacking) {
+      ctx.fillStyle = '#FF0000';
+      const flashAlpha = Math.abs(Math.sin(Date.now() / 50));
+      ctx.globalAlpha = 0.5 + flashAlpha * 0.5;
+      ctx.fillText('⚠️ ATTACKING!', barX + barWidth + shakeX, barY + 38 + shakeY);
+    } else {
+      ctx.fillStyle = '#888888';
+      ctx.fillText('READY', barX + barWidth + shakeX, barY + 38 + shakeY);
+    }
+    
+    ctx.restore();
+  }, []);
+
+  // Draw boss defeat explosion effects
+  const drawBossDefeatEffects = useCallback((ctx: CanvasRenderingContext2D) => {
+    const particles = bossDefeatParticlesRef.current;
+    if (particles.length === 0) return;
+    
+    ctx.save();
+    particles.forEach(p => {
+      ctx.globalAlpha = Math.min(1, p.life / 30);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+    
+    // Update particles
+    bossDefeatParticlesRef.current = particles
+      .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.2, life: p.life - 1, size: p.size * 0.98 }))
+      .filter(p => p.life > 0);
   }, []);
 
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, powerUps: ActivePowerUp[], showVipBadge: boolean) => {
@@ -1198,8 +1346,26 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     drawPlayer(ctx, player);
     
     // Draw boss and particles AFTER player (in front)
-    if (boss) drawBoss(ctx, boss);
+    if (boss) {
+      drawBoss(ctx, boss);
+      drawBossHealthBar(ctx, boss);
+    }
     drawParticles(ctx, particles);
+    drawBossDefeatEffects(ctx);
+    
+    // Draw boss hit screen flash effect
+    const hitEffect = bossHitEffectRef.current;
+    if (hitEffect) {
+      const elapsed = Date.now() - hitEffect.timestamp;
+      if (elapsed < 200) {
+        const intensity = (1 - elapsed / 200) * 0.3;
+        ctx.save();
+        ctx.fillStyle = hitEffect.isDefeat ? '#FFD700' : '#FF0000';
+        ctx.globalAlpha = intensity;
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.restore();
+      }
+    }
     
     // UI elements
     drawUI(ctx, score, coinCount, activePowerUps, isVip);
@@ -1311,7 +1477,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchBlockRef = useRef(false);
 
