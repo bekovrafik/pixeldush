@@ -84,6 +84,15 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const [rushModeEnabled, setRushModeEnabled] = useState(false);
   const [endlessModeEnabled, setEndlessModeEnabled] = useState(false);
   
+  // Kill cam state for slow-motion effect
+  const [killCam, setKillCam] = useState<{ isActive: boolean; bossType: string; startTime: number; bossX: number; bossY: number } | null>(null);
+  
+  // Environmental hazards state
+  const [environmentalHazards, setEnvironmentalHazards] = useState<{ id: string; x: number; y: number; width: number; height: number; type: 'fire' | 'electric' | 'void'; damage: number; timer: number }[]>([]);
+  
+  // Boss rage meter state
+  const [bossRage, setBossRage] = useState<{ current: number; max: number; isEnraged: boolean }>({ current: 0, max: 100, isEnraged: false });
+  
   const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const obstacleTimerRef = useRef<number>(0);
@@ -640,7 +649,19 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
               onBossHit?.();
               
               if (newHealth <= 0) {
-                // Boss defeated
+                // Boss defeated - trigger kill cam
+                setKillCam({
+                  isActive: true,
+                  bossType: prevBoss.type,
+                  startTime: Date.now(),
+                  bossX: prevBoss.x + prevBoss.width / 2,
+                  bossY: prevBoss.y + prevBoss.height / 2,
+                });
+                
+                // Clear environmental hazards and reset rage
+                setEnvironmentalHazards([]);
+                setBossRage({ current: 0, max: 100, isEnraged: false });
+                
                 const bossConfig = bossArena 
                   ? getArenaBossConfig(prevBoss.type, bossArena.currentBossIndex, bossArena.isRushMode, bossArena.endlessWave)
                   : BOSS_CONFIGS.find(c => c.type === prevBoss.type)!;
@@ -883,6 +904,130 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         
         return newBoss;
       });
+      
+      // Update boss rage meter and environmental hazards
+      setBossRage(prev => {
+        if (!boss) return { current: 0, max: 100, isEnraged: false };
+        
+        // Rage fills faster in phase 2
+        const rageIncrement = boss.phase >= 2 ? 0.5 : 0.25;
+        const newRage = Math.min(prev.current + rageIncrement, prev.max);
+        const isNowEnraged = newRage >= prev.max && !prev.isEnraged;
+        
+        // Trigger rage attack when meter fills
+        if (isNowEnraged) {
+          // Spawn devastating rage attack - multiple projectiles
+          setBoss(prevBoss => {
+            if (!prevBoss) return null;
+            const rageProjectiles: BossProjectile[] = [];
+            
+            if (prevBoss.type === 'mech') {
+              // Mech: Sweeping laser barrage
+              for (let i = 0; i < 7; i++) {
+                rageProjectiles.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  x: prevBoss.x,
+                  y: GROUND_Y - 30 - i * 25,
+                  width: 50,
+                  height: 12,
+                  velocityX: -15,
+                  velocityY: 0,
+                  type: 'laser',
+                });
+              }
+            } else if (prevBoss.type === 'dragon') {
+              // Dragon: Fire rain from above
+              for (let i = 0; i < 8; i++) {
+                rageProjectiles.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  x: 100 + i * 90,
+                  y: 0,
+                  width: 30,
+                  height: 30,
+                  velocityX: 0,
+                  velocityY: 8 + Math.random() * 4,
+                  type: 'fireball',
+                });
+              }
+            } else if (prevBoss.type === 'titan') {
+              // Titan: Missile storm
+              for (let i = 0; i < 10; i++) {
+                const angle = (Math.PI * i) / 9 + Math.PI * 0.5;
+                rageProjectiles.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  x: prevBoss.x,
+                  y: prevBoss.y + prevBoss.height / 2,
+                  width: 28,
+                  height: 16,
+                  velocityX: Math.cos(angle) * 12,
+                  velocityY: Math.sin(angle) * 8,
+                  type: 'missile',
+                });
+              }
+            }
+            
+            return { ...prevBoss, projectiles: [...prevBoss.projectiles, ...rageProjectiles] };
+          });
+          
+          return { current: 0, max: prev.max, isEnraged: true };
+        }
+        
+        // Reset enraged state after a delay
+        if (prev.isEnraged && newRage >= 10) {
+          return { current: newRage, max: prev.max, isEnraged: false };
+        }
+        
+        return { current: newRage, max: prev.max, isEnraged: prev.isEnraged };
+      });
+      
+      // Generate environmental hazards based on boss type
+      setEnvironmentalHazards(prev => {
+        if (!boss) return [];
+        
+        // Spawn new hazards periodically
+        const shouldSpawn = Math.random() < 0.02; // 2% chance per frame
+        if (!shouldSpawn) {
+          // Update existing hazards
+          return prev
+            .map(h => ({ ...h, x: h.x - gameState.speed * 0.5, timer: h.timer - 1 }))
+            .filter(h => h.x > -50 && h.timer > 0);
+        }
+        
+        const hazardType = boss.type === 'mech' ? 'electric' : boss.type === 'dragon' ? 'fire' : 'void';
+        const newHazard = {
+          id: Math.random().toString(36).substr(2, 9),
+          x: 200 + Math.random() * 400,
+          y: GROUND_Y - 15,
+          width: 60 + Math.random() * 40,
+          height: 15,
+          type: hazardType as 'fire' | 'electric' | 'void',
+          damage: 1,
+          timer: 300 + Math.random() * 200, // 5-8 seconds
+        };
+        
+        return [...prev.map(h => ({ ...h, x: h.x - gameState.speed * 0.5, timer: h.timer - 1 }))
+          .filter(h => h.x > -50 && h.timer > 0), newHazard];
+      });
+      
+      // Check hazard collision with player
+      for (const hazard of environmentalHazards) {
+        if (player.x + player.width > hazard.x && player.x < hazard.x + hazard.width &&
+            player.y + player.height > hazard.y) {
+          if (!hasShield) {
+            onPlayerHit?.();
+            // Don't end game, just damage/knockback
+            setParticles(p => [...p, ...createParticles(player.x + PLAYER_WIDTH / 2, player.y + PLAYER_HEIGHT / 2, 
+              hazard.type === 'fire' ? ['#FF4500', '#FF8C00', '#FFD700'] : 
+              hazard.type === 'electric' ? ['#00FFFF', '#FFFF00', '#FFFFFF'] :
+              ['#4B0082', '#8B008B', '#9400D3'], 10)]);
+          }
+        }
+      }
+      
+      // Clear kill cam after duration
+      if (killCam && Date.now() - killCam.startTime > 2000) {
+        setKillCam(null);
+      }
     }
 
     // Helper function for boss defeat handling
@@ -1047,7 +1192,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   return { 
     gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, 
     boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled,
-    justPickedUpWeapon,
+    justPickedUpWeapon, killCam, environmentalHazards, bossRage,
     jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode 
   };
 }

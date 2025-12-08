@@ -191,7 +191,7 @@ export default function Index() {
   // Boss defeat effect state
   const [bossDeathEffect, setBossDeathEffect] = useState<{ bossType: string; timestamp: number } | null>(null);
 
-  const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, justPickedUpWeapon, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { 
+  const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, justPickedUpWeapon, killCam, environmentalHazards, bossRage, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { 
     isVip, 
     onPlayerDamage: () => {
       shakeOnDamage();
@@ -621,6 +621,9 @@ export default function Index() {
           bossIntroShakeOffset={getBossIntroShake()}
           phaseTransition={phaseTransition}
           bossDeathEffect={bossDeathEffect}
+          killCam={killCam}
+          environmentalHazards={environmentalHazards}
+          bossRage={bossRage}
         />
 
         <GameUI

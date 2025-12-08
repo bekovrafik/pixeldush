@@ -21,6 +21,31 @@ interface BossDeathEffect {
   timestamp: number;
 }
 
+interface KillCamEffect {
+  isActive: boolean;
+  bossType: string;
+  startTime: number;
+  bossX: number;
+  bossY: number;
+}
+
+interface EnvironmentalHazard {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: 'fire' | 'electric' | 'void';
+  damage: number;
+  timer: number;
+}
+
+interface BossRage {
+  current: number;
+  max: number;
+  isEnraged: boolean;
+}
+
 interface GameCanvasProps {
   player: Player;
   obstacles: Obstacle[];
@@ -55,6 +80,10 @@ interface GameCanvasProps {
   // Phase transition and boss death effects
   phaseTransition?: PhaseTransitionEffect | null;
   bossDeathEffect?: BossDeathEffect | null;
+  // Kill cam, environmental hazards, and boss rage
+  killCam?: KillCamEffect | null;
+  environmentalHazards?: EnvironmentalHazard[];
+  bossRage?: BossRage;
 }
 
 const CANVAS_WIDTH = 800;
@@ -76,7 +105,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 }, phaseTransition, bossDeathEffect }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 }, phaseTransition, bossDeathEffect, killCam, environmentalHazards = [], bossRage }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -1069,6 +1098,248 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
+  // Draw kill cam slow-motion effect
+  const drawKillCam = useCallback((ctx: CanvasRenderingContext2D, cam: KillCamEffect | null | undefined) => {
+    if (!cam || !cam.isActive) return;
+    
+    const elapsed = Date.now() - cam.startTime;
+    const duration = 2000;
+    
+    if (elapsed >= duration) return;
+    
+    const progress = elapsed / duration;
+    
+    ctx.save();
+    
+    // Dramatic slow-mo vignette
+    const vignetteIntensity = 0.6 - progress * 0.4;
+    const gradient = ctx.createRadialGradient(
+      cam.bossX, cam.bossY, 0,
+      cam.bossX, cam.bossY, CANVAS_WIDTH * 0.8
+    );
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(0.5, `rgba(0, 0, 0, ${vignetteIntensity * 0.3})`);
+    gradient.addColorStop(1, `rgba(0, 0, 0, ${vignetteIntensity})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Boss-type specific visual effects during kill cam
+    const typeColors: Record<string, string[]> = {
+      mech: ['#FF4444', '#00FFFF', '#FFFF00'],
+      dragon: ['#FF6600', '#9933FF', '#FF00FF'],
+      titan: ['#FFD700', '#FFA500', '#FFFFFF'],
+    };
+    const colors = typeColors[cam.bossType] || typeColors.mech;
+    
+    // Radial energy burst from death point
+    const burstRadius = progress * 400;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 + elapsed / 200;
+      const length = burstRadius * (0.5 + Math.random() * 0.5);
+      
+      ctx.globalAlpha = (1 - progress) * 0.8;
+      ctx.strokeStyle = colors[i % colors.length];
+      ctx.lineWidth = 4 - progress * 3;
+      ctx.shadowColor = colors[i % colors.length];
+      ctx.shadowBlur = 20;
+      
+      ctx.beginPath();
+      ctx.moveTo(cam.bossX, cam.bossY);
+      ctx.lineTo(
+        cam.bossX + Math.cos(angle) * length,
+        cam.bossY + Math.sin(angle) * length * 0.6
+      );
+      ctx.stroke();
+    }
+    
+    // "DEFEATED!" text with dramatic reveal
+    if (elapsed > 300 && elapsed < 1500) {
+      const textProgress = (elapsed - 300) / 1200;
+      const textScale = 0.5 + textProgress * 0.5;
+      const textAlpha = textProgress < 0.2 ? textProgress * 5 : textProgress > 0.8 ? (1 - textProgress) * 5 : 1;
+      
+      ctx.globalAlpha = textAlpha;
+      ctx.shadowColor = colors[0];
+      ctx.shadowBlur = 30;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `bold ${Math.floor(36 * textScale)}px "Press Start 2P", monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('DEFEATED!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+      
+      // Boss name below
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.fillStyle = colors[0];
+      const bossName = cam.bossType === 'mech' ? 'CYBER MECH' : cam.bossType === 'dragon' ? 'SHADOW DRAGON' : 'COSMIC TITAN';
+      ctx.fillText(bossName, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30);
+    }
+    
+    // Slow-mo frame lines
+    ctx.globalAlpha = (1 - progress) * 0.3;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    const barHeight = 40 + progress * 20;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, barHeight);
+    ctx.fillRect(0, CANVAS_HEIGHT - barHeight, CANVAS_WIDTH, barHeight);
+    
+    ctx.restore();
+  }, []);
+
+  // Draw environmental hazards
+  const drawEnvironmentalHazards = useCallback((ctx: CanvasRenderingContext2D, hazards: EnvironmentalHazard[]) => {
+    hazards.forEach(hazard => {
+      ctx.save();
+      
+      const pulse = Math.sin(Date.now() / 100 + hazard.x) * 0.3 + 0.7;
+      ctx.globalAlpha = pulse * (hazard.timer / 300);
+      
+      if (hazard.type === 'fire') {
+        // Fire patches
+        const gradient = ctx.createLinearGradient(hazard.x, hazard.y, hazard.x, hazard.y - 20);
+        gradient.addColorStop(0, '#FF4500');
+        gradient.addColorStop(0.5, '#FF8C00');
+        gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+        ctx.fillStyle = gradient;
+        
+        // Animated flames
+        for (let i = 0; i < hazard.width / 10; i++) {
+          const flameX = hazard.x + i * 10;
+          const flameHeight = 15 + Math.sin(Date.now() / 80 + i * 2) * 8;
+          ctx.beginPath();
+          ctx.moveTo(flameX, hazard.y);
+          ctx.quadraticCurveTo(flameX + 5, hazard.y - flameHeight, flameX + 10, hazard.y);
+          ctx.fill();
+        }
+        
+        // Base glow
+        ctx.fillStyle = '#FF4500';
+        ctx.shadowColor = '#FF4500';
+        ctx.shadowBlur = 15;
+        ctx.fillRect(hazard.x, hazard.y, hazard.width, hazard.height);
+        
+      } else if (hazard.type === 'electric') {
+        // Electrical field
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+        ctx.shadowColor = '#00FFFF';
+        ctx.shadowBlur = 20;
+        ctx.fillRect(hazard.x, hazard.y, hazard.width, hazard.height);
+        
+        // Lightning sparks
+        ctx.strokeStyle = '#FFFF00';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+          const startX = hazard.x + Math.random() * hazard.width;
+          ctx.beginPath();
+          ctx.moveTo(startX, hazard.y);
+          let y = hazard.y;
+          for (let j = 0; j < 4; j++) {
+            y -= 8;
+            ctx.lineTo(startX + (Math.random() - 0.5) * 20, y);
+          }
+          ctx.stroke();
+        }
+        
+      } else if (hazard.type === 'void') {
+        // Void/gravity field
+        const voidGradient = ctx.createRadialGradient(
+          hazard.x + hazard.width / 2, hazard.y,
+          0,
+          hazard.x + hazard.width / 2, hazard.y,
+          hazard.width / 2
+        );
+        voidGradient.addColorStop(0, 'rgba(75, 0, 130, 0.8)');
+        voidGradient.addColorStop(0.5, 'rgba(139, 0, 139, 0.5)');
+        voidGradient.addColorStop(1, 'rgba(148, 0, 211, 0)');
+        ctx.fillStyle = voidGradient;
+        ctx.beginPath();
+        ctx.ellipse(hazard.x + hazard.width / 2, hazard.y, hazard.width / 2, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Swirling particles
+        for (let i = 0; i < 5; i++) {
+          const angle = Date.now() / 300 + i * (Math.PI * 2 / 5);
+          const radius = 15 + i * 5;
+          const px = hazard.x + hazard.width / 2 + Math.cos(angle) * radius;
+          const py = hazard.y + Math.sin(angle) * 5;
+          ctx.fillStyle = '#9400D3';
+          ctx.beginPath();
+          ctx.arc(px, py, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      
+      ctx.restore();
+    });
+  }, []);
+
+  // Draw boss rage meter
+  const drawBossRageMeter = useCallback((ctx: CanvasRenderingContext2D, rage: BossRage | undefined, b: Boss | null) => {
+    if (!rage || !b) return;
+    
+    ctx.save();
+    
+    const meterWidth = 150;
+    const meterHeight = 12;
+    const meterX = 10;
+    const meterY = 60;
+    const fillPercent = rage.current / rage.max;
+    
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.beginPath();
+    ctx.roundRect(meterX - 5, meterY - 15, meterWidth + 10, meterHeight + 28, 6);
+    ctx.fill();
+    
+    // Label
+    ctx.fillStyle = rage.isEnraged ? '#FF0000' : '#FF6600';
+    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('⚡ BOSS RAGE', meterX, meterY - 5);
+    
+    // Meter background
+    ctx.fillStyle = 'rgba(60, 0, 0, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(meterX, meterY, meterWidth, meterHeight, 3);
+    ctx.fill();
+    
+    // Meter fill with gradient
+    if (fillPercent > 0) {
+      const gradient = ctx.createLinearGradient(meterX, 0, meterX + meterWidth * fillPercent, 0);
+      gradient.addColorStop(0, '#FF4400');
+      gradient.addColorStop(0.5, '#FF0000');
+      gradient.addColorStop(1, '#FF00FF');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(meterX, meterY, meterWidth * fillPercent, meterHeight, 3);
+      ctx.fill();
+      
+      // Pulsing glow when near full
+      if (fillPercent > 0.8) {
+        const glowPulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+        ctx.shadowColor = '#FF0000';
+        ctx.shadowBlur = 15 * glowPulse;
+        ctx.fillRect(meterX, meterY, meterWidth * fillPercent, meterHeight);
+      }
+    }
+    
+    // ENRAGED indicator
+    if (rage.isEnraged) {
+      const flashAlpha = Math.abs(Math.sin(Date.now() / 50));
+      ctx.globalAlpha = flashAlpha;
+      ctx.fillStyle = '#FF0000';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠️ ENRAGED! ⚠️', meterX + meterWidth / 2, meterY + 22);
+    } else {
+      ctx.fillStyle = '#888888';
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${Math.floor(fillPercent * 100)}%`, meterX + meterWidth, meterY + 20);
+    }
+    
+    ctx.restore();
+  }, []);
+
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, powerUps: ActivePowerUp[], showVipBadge: boolean) => {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(CANVAS_WIDTH - 150, 10, 140, 40);
@@ -1564,6 +1835,10 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     drawBackground(ctx);
     drawGround(ctx);
+    
+    // Draw environmental hazards (behind obstacles)
+    drawEnvironmentalHazards(ctx, environmentalHazards);
+    
     obstacles.forEach(obs => drawObstacle(ctx, obs));
     
     // Draw collectibles BEHIND the player (filter out ones too close to player - they're being collected)
@@ -1599,10 +1874,14 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     if (boss) {
       drawBoss(ctx, boss);
       drawBossHealthBar(ctx, boss);
+      drawBossRageMeter(ctx, bossRage, boss);
     }
     drawParticles(ctx, particles);
     drawBossDefeatEffects(ctx);
     drawUniqueBossDeathEffect(ctx, bossDeathEffect || null);
+    
+    // Draw kill cam effect (dramatic slow-motion overlay)
+    drawKillCam(ctx, killCam);
     
     // Draw phase transition effect (dramatic overlay)
     drawPhaseTransition(ctx, phaseTransition || null);
@@ -1731,7 +2010,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchBlockRef = useRef(false);
 
