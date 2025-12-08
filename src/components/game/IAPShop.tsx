@@ -74,10 +74,19 @@ interface ConfirmPurchaseModalProps {
 function ConfirmPurchaseModal({ isOpen, onClose, onConfirm, title, description, price, isLoading }: ConfirmPurchaseModalProps) {
   if (!isOpen) return null;
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+  };
+
+  const handleContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in">
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
-      <div className="relative z-10 bg-card border border-primary/30 rounded-xl p-6 max-w-sm w-[90%] mx-4 animate-scale-in">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-fade-in pointer-events-auto" onClick={handleBackdropClick}>
+      <div className="absolute inset-0 bg-black/80" />
+      <div className="relative z-10 bg-card border border-primary/30 rounded-xl p-6 max-w-sm w-[90%] mx-4 animate-scale-in pointer-events-auto" onClick={handleContentClick}>
         <h3 className="font-pixel text-lg text-primary mb-4">Confirm Purchase</h3>
         <div className="space-y-3 mb-6">
           <p className="font-pixel text-foreground">{title}</p>
@@ -124,10 +133,19 @@ function SkinPreviewModal({ skin, onClose, onPurchase, isLoading, isOwned }: Ski
 
   const skinColors = SKIN_COLORS[skin.skinId] || SKIN_COLORS.default;
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+  };
+
+  const handleContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in">
-      <div className="absolute inset-0 bg-black/90" onClick={onClose} />
-      <div className="relative z-10 bg-gradient-to-b from-slate-900 to-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-[90%] mx-4 animate-scale-in">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-fade-in pointer-events-auto" onClick={handleBackdropClick}>
+      <div className="absolute inset-0 bg-black/90" />
+      <div className="relative z-10 bg-gradient-to-b from-slate-900 to-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-[90%] mx-4 animate-scale-in pointer-events-auto" onClick={handleContentClick}>
         {/* Close Button */}
         <button 
           onClick={() => { audioManager.playClick(); onClose(); }}
