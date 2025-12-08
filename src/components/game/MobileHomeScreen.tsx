@@ -4,6 +4,7 @@ import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Sw
 import { WORLD_CONFIGS, WorldTheme } from '@/types/game';
 import { hapticsManager } from '@/lib/hapticsManager';
 import { HomeHeroSection } from './HomeHeroSection';
+import { BossFightPreview } from './BossFightPreview';
 interface MobileHomeScreenProps {
   highScore: number;
   currentWorld: WorldTheme;
@@ -78,6 +79,17 @@ export function MobileHomeScreen({
   const [selectedMode, setSelectedMode] = useState<GameMode>(
     rushModeEnabled ? 'rush' : endlessModeEnabled ? 'endless' : 'normal'
   );
+  const [showBossPreview, setShowBossPreview] = useState(false);
+
+  const handleBossesClick = useCallback(() => {
+    hapticsManager.lightImpact();
+    setShowBossPreview(true);
+  }, []);
+
+  const handleBossPreviewContinue = useCallback(() => {
+    setShowBossPreview(false);
+    onOpenBossCollection();
+  }, [onOpenBossCollection]);
 
   const handleModeSelect = useCallback((mode: GameMode) => {
     setSelectedMode(mode);
@@ -109,6 +121,12 @@ export function MobileHomeScreen({
   const currentMode = GAME_MODES.find(m => m.id === selectedMode) || GAME_MODES[0];
 
   return (
+    <>
+    <BossFightPreview 
+      isVisible={showBossPreview} 
+      onClose={() => setShowBossPreview(false)}
+      onContinue={handleBossPreviewContinue}
+    />
     <div className="min-h-[100dvh] bg-gradient-to-b from-background via-background to-card/80 flex flex-col overflow-hidden">
       {/* Safe Area Top */}
       <div className="safe-area-top" />
@@ -260,7 +278,7 @@ export function MobileHomeScreen({
               color="text-red-400"
               bgColor="bg-red-500/10"
               borderColor="border-red-500/30"
-              onClick={() => handleButtonPress(onOpenBossCollection)} 
+              onClick={handleBossesClick} 
             />
             <FeatureButton 
               icon={RotateCw} 
@@ -327,6 +345,7 @@ export function MobileHomeScreen({
         </div>
       </nav>
     </div>
+    </>
   );
 }
 

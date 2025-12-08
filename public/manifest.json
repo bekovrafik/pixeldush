@@ -1,0 +1,38 @@
+{
+  "name": "Pixel Runner",
+  "short_name": "PixelRunner",
+  "description": "Run, jump, and battle through neon-lit worlds in this addictive retro pixel art endless runner!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f23",
+  "theme_color": "#4ECDC4",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Play Now",
+      "url": "/",
+      "description": "Start playing Pixel Runner"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Pixel Runner - Retro Endless Runner Game</title>
     <meta name="description" content="Run, jump, and battle through neon-lit worlds in this addictive retro pixel art endless runner. Collect coins, defeat bosses, and climb the leaderboards!" />
     <meta name="author" content="Pixel Runner" />
@@ -26,11 +26,16 @@
 
     <!-- Theme Color -->
     <meta name="theme-color" content="#0f0f23" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
-    <!-- Favicon -->
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Favicon & Icons -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
   </head>
 
   <body>

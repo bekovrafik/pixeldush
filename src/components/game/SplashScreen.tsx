@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import gameLogo from '@/assets/game-logo.png';
-import { PixelCharacter } from './PixelCharacter';
+import { AnimatedGameLogo } from './AnimatedGameLogo';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -53,39 +52,9 @@ export function SplashScreen({ onComplete, minDuration = 2500 }: SplashScreenPro
       {/* Radial glow behind logo */}
       <div className="absolute w-[500px] h-[300px] bg-primary/20 rounded-full blur-[100px] animate-pulse-slow" />
 
-      {/* Logo with animations */}
-      <div className="relative z-10 flex flex-col items-center">
-        {/* Main logo image */}
-        <div className="relative animate-scale-in">
-          <img
-            src={gameLogo}
-            alt="Pixel Runner"
-            className="w-[280px] md:w-[400px] h-auto drop-shadow-2xl"
-            style={{
-              filter: 'drop-shadow(0 0 30px hsl(var(--primary) / 0.5))',
-            }}
-          />
-          
-          {/* Shine effect */}
-          <div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-shine"
-          />
-        </div>
-
-        {/* Animated character running */}
-        <div className="mt-6 relative">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div 
-              className="w-24 h-24 rounded-full bg-primary/20 blur-xl animate-pulse"
-            />
-          </div>
-          <PixelCharacter 
-            animation="running" 
-            size={72} 
-            showGlow 
-            showTrail
-          />
-        </div>
+      {/* Animated Logo with Character */}
+      <div className="relative z-10 flex flex-col items-center animate-scale-in">
+        <AnimatedGameLogo size="lg" showCharacter animate />
 
         {/* Loading bar */}
         <div className="mt-6 w-48 h-2 bg-muted/50 rounded-full overflow-hidden border border-border/30">
