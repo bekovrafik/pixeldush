@@ -5,6 +5,7 @@ class AudioManager {
   private isMusicMuted: boolean = false;
   private bgmGain: GainNode | null = null;
   private bgmPlaying: boolean = false;
+  private bgmLoopId: number = 0; // Unique ID to track current loop
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -312,18 +313,26 @@ class AudioManager {
   startBGM() {
     if (this.isMusicMuted || this.bgmPlaying) return;
     
+    // Stop any existing BGM first
+    this.stopBGM();
+    
     const ctx = this.getContext();
     this.bgmGain = ctx.createGain();
     this.bgmGain.connect(ctx.destination);
     this.bgmGain.gain.setValueAtTime(0.05, ctx.currentTime);
     
+    // Increment loop ID to invalidate old loops
+    this.bgmLoopId++;
+    const currentLoopId = this.bgmLoopId;
+    
     // Simple chiptune-style background melody
     const playNote = (frequency: number, startTime: number, duration: number) => {
+      if (!this.bgmGain) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       
       osc.connect(gain);
-      gain.connect(this.bgmGain!);
+      gain.connect(this.bgmGain);
       
       osc.type = 'square';
       osc.frequency.setValueAtTime(frequency, startTime);
@@ -341,7 +350,8 @@ class AudioManager {
     let noteIndex = 0;
     
     const loopMelody = () => {
-      if (!this.bgmPlaying || this.isMusicMuted) return;
+      // Check if this loop is still valid (same ID and still playing)
+      if (!this.bgmPlaying || this.isMusicMuted || this.bgmLoopId !== currentLoopId) return;
       
       const now = ctx.currentTime;
       for (let i = 0; i < 8; i++) {
@@ -358,6 +368,7 @@ class AudioManager {
 
   stopBGM() {
     this.bgmPlaying = false;
+    this.bgmLoopId++; // Invalidate any running loop
     if (this.bgmGain) {
       this.bgmGain.disconnect();
       this.bgmGain = null;
