@@ -25,6 +25,7 @@ import { MobileControls } from '@/components/game/MobileControls';
 import { WeaponHUD } from '@/components/game/WeaponHUD';
 import { MobileHomeScreen } from '@/components/game/MobileHomeScreen';
 import { VipSubscriptionModal } from '@/components/game/VipSubscriptionModal';
+import { VictoryCelebrationModal } from '@/components/game/VictoryCelebrationModal';
 import { AccountManagementModal } from '@/components/game/AccountManagementModal';
 import { SplashScreen } from '@/components/game/SplashScreen';
 import { purchaseManager } from '@/lib/purchaseManager';
@@ -83,6 +84,17 @@ export default function Index() {
   const [showBossRushLeaderboard, setShowBossRushLeaderboard] = useState(false);
   const [showBossRushChallenges, setShowBossRushChallenges] = useState(false);
   const [showAccountManagement, setShowAccountManagement] = useState(false);
+  const [showVictoryCelebration, setShowVictoryCelebration] = useState(false);
+  const [victoryStats, setVictoryStats] = useState<{
+    bossesDefeated: string[];
+    totalCoins: number;
+    totalXP: number;
+    timeSeconds: number;
+    isRushMode: boolean;
+    isEndlessMode: boolean;
+    endlessWave: number;
+    hasDied: boolean;
+  } | null>(null);
   const [powerupsCollectedThisRun, setPowerupsCollectedThisRun] = useState(0);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
@@ -273,6 +285,19 @@ export default function Index() {
       const completionTimeSeconds = (Date.now() - bossArena.startTime) / 1000;
       const isEndless = bossArena.isEndlessMode;
       const bossCount = bossArena.bossesDefeated.length;
+      
+      // Show victory celebration modal
+      setVictoryStats({
+        bossesDefeated: bossArena.bossesDefeated,
+        totalCoins: bossArena.totalRewards.coins,
+        totalXP: bossArena.totalRewards.xp,
+        timeSeconds: completionTimeSeconds,
+        isRushMode: bossArena.isRushMode,
+        isEndlessMode: isEndless,
+        endlessWave: bossArena.endlessWave,
+        hasDied: bossArena.hasDied,
+      });
+      setShowVictoryCelebration(true);
       
       // Submit to leaderboard
       submitRushScore(
@@ -830,6 +855,11 @@ export default function Index() {
         profile={profile}
         onSignOut={signOut}
         onProfileUpdate={refreshProfile}
+      />
+      <VictoryCelebrationModal
+        isOpen={showVictoryCelebration}
+        onClose={() => setShowVictoryCelebration(false)}
+        stats={victoryStats}
       />
     </div>
   );
