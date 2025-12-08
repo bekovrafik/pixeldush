@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Mail, Lock, LogOut } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { User, Mail, Lock, LogOut, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Profile } from '@/types/game';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -36,6 +38,8 @@ export function AuthModal({
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSignUp = async () => {
     try {
@@ -103,6 +107,74 @@ export function AuthModal({
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast.error('Please type DELETE to confirm');
+      return;
+    }
+
+    setIsDeleting(true);
+    
+    try {
+      // Delete user data from all related tables
+      if (profile?.id) {
+        // Delete owned skins
+        await supabase.from('owned_skins').delete().eq('profile_id', profile.id);
+        
+        // Delete leaderboard entries
+        await supabase.from('leaderboard_entries').delete().eq('profile_id', profile.id);
+        
+        // Delete achievements
+        await supabase.from('user_achievements').delete().eq('profile_id', profile.id);
+        
+        // Delete daily rewards
+        await supabase.from('daily_rewards').delete().eq('profile_id', profile.id);
+        
+        // Delete friendships
+        await supabase.from('friendships').delete().or(`requester_id.eq.${profile.id},addressee_id.eq.${profile.id}`);
+        
+        // Delete daily challenges progress
+        await supabase.from('user_daily_challenges').delete().eq('profile_id', profile.id);
+        
+        // Delete battle pass progress
+        await supabase.from('user_battle_pass').delete().eq('profile_id', profile.id);
+        
+        // Delete boss defeats
+        await supabase.from('boss_defeats').delete().eq('profile_id', profile.id);
+        
+        // Delete boss rush scores
+        await supabase.from('boss_rush_scores').delete().eq('profile_id', profile.id);
+        
+        // Delete boss rush challenges
+        await supabase.from('user_boss_rush_challenges').delete().eq('profile_id', profile.id);
+        
+        // Delete VIP stats
+        await supabase.from('vip_stats').delete().eq('profile_id', profile.id);
+        
+        // Delete VIP subscriptions
+        await supabase.from('vip_subscriptions').delete().eq('profile_id', profile.id);
+        
+        // Delete VIP daily bonuses
+        await supabase.from('vip_daily_bonuses').delete().eq('profile_id', profile.id);
+        
+        // Delete profile
+        await supabase.from('profiles').delete().eq('id', profile.id);
+      }
+      
+      // Sign out
+      await supabase.auth.signOut();
+      
+      toast.success('Account deleted successfully');
+      setDeleteConfirmText('');
+      onClose();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoggedIn && profile) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -146,6 +218,66 @@ export function AuthModal({
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>
+
+            {/* Delete Account Section */}
+            <div className="pt-4 border-t border-border/30">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Account
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-card border-destructive/30">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="w-5 h-5" />
+                      Delete Account
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-3">
+                      <p className="text-foreground">
+                        This action is <strong>permanent and cannot be undone</strong>.
+                      </p>
+                      <p className="text-muted-foreground">
+                        All your data will be deleted including:
+                      </p>
+                      <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                        <li>Profile and game progress</li>
+                        <li>Coins and purchased skins</li>
+                        <li>Leaderboard entries</li>
+                        <li>Achievements and battle pass progress</li>
+                        <li>Friends list</li>
+                        <li>VIP subscription status</li>
+                      </ul>
+                      <div className="pt-3">
+                        <Label className="text-xs text-muted-foreground">
+                          Type <span className="font-bold text-destructive">DELETE</span> to confirm:
+                        </Label>
+                        <Input
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          placeholder="Type DELETE"
+                          className="mt-2 border-destructive/50"
+                        />
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setDeleteConfirmText('')}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                      className="bg-destructive hover:bg-destructive/90"
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete Forever'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

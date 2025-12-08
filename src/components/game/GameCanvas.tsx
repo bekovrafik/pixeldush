@@ -1,6 +1,8 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { Player, Obstacle, Particle, Coin, PowerUp, WorldTheme, WORLD_CONFIGS, ActivePowerUp, VIP_SKIN_EFFECTS, PlayerProjectile, WeaponPowerUp, WEAPON_CONFIGS, WeaponType } from '@/types/game';
 import { Boss, BOSS_CONFIGS, BossArenaState, ARENA_BOSS_SEQUENCE } from '@/types/boss';
+import { ScreenFlash, PowerUpExplosion } from '@/hooks/usePowerUpEffects';
+import { BossIntroState } from '@/hooks/useBossIntro';
 
 interface GameCanvasProps {
   player: Player;
@@ -26,6 +28,12 @@ interface GameCanvasProps {
   hasDoubleJumped: boolean;
   isVip?: boolean;
   onTap: () => void;
+  // Power-up effects
+  screenFlash?: ScreenFlash | null;
+  powerUpExplosions?: PowerUpExplosion[];
+  // Boss intro
+  bossIntro?: BossIntroState | null;
+  bossIntroShakeOffset?: { x: number; y: number };
 }
 
 const CANVAS_WIDTH = 800;
@@ -47,7 +55,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 } }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -1067,7 +1075,103 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       drawBossArenaUI(ctx, bossArena);
     }
     if (bossWarning) drawBossWarning(ctx, bossWarning);
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossWarning, drawBossArenaUI]);
+    
+    // Draw power-up explosions
+    powerUpExplosions.forEach(explosion => {
+      ctx.save();
+      explosion.particles.forEach(particle => {
+        ctx.globalAlpha = particle.alpha;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    });
+    
+    // Draw screen flash
+    if (screenFlash) {
+      const elapsed = Date.now() - screenFlash.startTime;
+      const progress = elapsed / screenFlash.duration;
+      const intensity = screenFlash.intensity * (1 - progress);
+      
+      if (intensity > 0) {
+        ctx.save();
+        ctx.fillStyle = screenFlash.color;
+        ctx.globalAlpha = intensity;
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.restore();
+      }
+    }
+    
+    // Draw boss intro overlay
+    if (bossIntro?.isActive) {
+      ctx.save();
+      
+      const stageElapsed = bossIntro.timer;
+      
+      // Letterbox effect
+      const barHeight = 40;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, barHeight);
+      ctx.fillRect(0, CANVAS_HEIGHT - barHeight, CANVAS_WIDTH, barHeight);
+      
+      switch (bossIntro.stage) {
+        case 'darken':
+          ctx.fillStyle = `rgba(0, 0, 0, ${0.7 * Math.min(stageElapsed / 500, 1)})`;
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          break;
+        case 'name_reveal':
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          
+          ctx.globalAlpha = Math.min(stageElapsed / 600, 1);
+          ctx.fillStyle = '#FF4444';
+          ctx.font = '12px "Press Start 2P", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('⚠️ BOSS APPROACHING ⚠️', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 50);
+          
+          ctx.shadowColor = '#FF0000';
+          ctx.shadowBlur = 20;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 24px "Press Start 2P", monospace';
+          ctx.fillText(bossIntro.bossName, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+          break;
+        case 'shake':
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          
+          const flashIntensity = Math.abs(Math.sin(stageElapsed / 30)) * 0.3;
+          ctx.fillStyle = `rgba(255, 0, 0, ${flashIntensity})`;
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 24px "Press Start 2P", monospace';
+          ctx.textAlign = 'center';
+          ctx.shadowColor = '#FF0000';
+          ctx.shadowBlur = 25;
+          ctx.fillText(bossIntro.bossName, CANVAS_WIDTH / 2 + bossIntroShakeOffset.x, CANVAS_HEIGHT / 2 + bossIntroShakeOffset.y);
+          break;
+        case 'fight':
+          const expandProgress = Math.min(stageElapsed / 600, 1);
+          const alpha = expandProgress < 0.8 ? 1 : 1 - (expandProgress - 0.8) * 5;
+          
+          ctx.globalAlpha = Math.max(0, alpha);
+          ctx.fillStyle = `rgba(0, 0, 0, ${0.7 * (1 - expandProgress)})`;
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          
+          ctx.shadowColor = '#FFD700';
+          ctx.shadowBlur = 30 + expandProgress * 20;
+          ctx.fillStyle = '#FFD700';
+          ctx.font = `bold ${Math.floor(32 + expandProgress * 16)}px "Press Start 2P", monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText('FIGHT!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+          break;
+      }
+      
+      ctx.restore();
+    }
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossWarning, drawBossArenaUI]);
 
   return (
     <canvas
