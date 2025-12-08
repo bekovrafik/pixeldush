@@ -16,6 +16,7 @@ interface GameCanvasProps {
   bossWarning: { name: string; countdown: number } | null;
   bossArena: BossArenaState | null;
   score: number;
+  distance: number;
   coinCount: number;
   speed: number;
   isPlaying: boolean;
@@ -55,7 +56,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 } }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 } }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -753,9 +754,9 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     });
   }, []);
 
-  const drawBossProgressBar = useCallback((ctx: CanvasRenderingContext2D, currentScore: number) => {
+  const drawBossProgressBar = useCallback((ctx: CanvasRenderingContext2D, currentDistance: number) => {
     const BOSS_TRIGGER_DISTANCE = 2000; // ARENA_TRIGGER_DISTANCE
-    const progress = Math.min(currentScore / BOSS_TRIGGER_DISTANCE, 1);
+    const progress = Math.min(currentDistance / BOSS_TRIGGER_DISTANCE, 1);
     
     // Don't show if already at boss
     if (progress >= 1) return;
@@ -824,11 +825,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     }
     
     // Progress text
-    const remaining = BOSS_TRIGGER_DISTANCE - currentScore;
+    const remaining = BOSS_TRIGGER_DISTANCE - currentDistance;
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '7px "Press Start 2P", monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`${Math.floor(currentScore)}`, barX + 5, barY + 21);
+    ctx.fillText(`${Math.floor(currentDistance)}m`, barX + 5, barY + 21);
     
     ctx.textAlign = 'right';
     ctx.fillStyle = progress > 0.8 ? '#FFD700' : '#888888';
@@ -1207,7 +1208,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     // Show boss progress bar when NOT in boss arena
     const isInBossArena = bossArena?.isActive || (bossArena && (bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || bossArena.isEndlessMode));
     if (!isInBossArena && !bossWarning && isPlaying) {
-      drawBossProgressBar(ctx, score);
+      drawBossProgressBar(ctx, distance);
     }
     
     if (isInBossArena && bossArena) {
@@ -1310,23 +1311,28 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
-  const touchedRef = useRef(false);
+  const touchBlockRef = useRef(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    touchedRef.current = true;
+    e.stopPropagation();
+    
+    // Block rapid-fire touches (debounce for 150ms)
+    if (touchBlockRef.current) return;
+    touchBlockRef.current = true;
+    
     onTap();
-    // Reset after a short delay to allow future mouse clicks
+    
     setTimeout(() => {
-      touchedRef.current = false;
-    }, 100);
+      touchBlockRef.current = false;
+    }, 150);
   }, [onTap]);
 
-  const handleClick = useCallback(() => {
-    // Skip if this is a synthetic mouse event from a touch
-    if (touchedRef.current) return;
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    // Skip all mouse events on touch devices - touch events already handle input
+    if ('ontouchstart' in window) return;
     onTap();
   }, [onTap]);
 
