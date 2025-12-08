@@ -24,6 +24,7 @@ import { MobileControls } from '@/components/game/MobileControls';
 import { WeaponHUD } from '@/components/game/WeaponHUD';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
+import { useScreenShake } from '@/hooks/useScreenShake';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useSkins } from '@/hooks/useSkins';
@@ -42,6 +43,7 @@ import { useVipStats } from '@/hooks/useVipStats';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { audioManager } from '@/lib/audioManager';
 import { admobManager } from '@/lib/admobManager';
+import { hapticsManager } from '@/lib/hapticsManager';
 import { WorldTheme } from '@/types/game';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -117,7 +119,24 @@ export default function Index() {
     shieldDurationBonus: selectedSkinData?.shield_duration_bonus || 0,
   };
 
-  const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { isVip });
+  // Screen shake hook
+  const { shakeOffset, shakeOnDamage, shakeOnBossDefeat, shakeOnHit } = useScreenShake();
+
+  const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { 
+    isVip, 
+    onPlayerDamage: () => {
+      shakeOnDamage();
+      hapticsManager.errorNotification();
+    },
+    onBossDefeat: () => {
+      shakeOnBossDefeat();
+      hapticsManager.successNotification();
+    },
+    onPlayerHit: () => {
+      shakeOnHit();
+      hapticsManager.warningNotification();
+    },
+  });
 
   // Check if tutorial should be shown
   useEffect(() => {
@@ -384,7 +403,13 @@ export default function Index() {
         </div>
       )}
 
-      <div className={`relative w-full ${isMobile && gameState.isPlaying && !isPortrait ? 'h-full game-canvas-wrapper' : 'max-w-4xl flex-1 flex flex-col justify-center'}`}>
+      <div 
+        className={`relative w-full ${isMobile && gameState.isPlaying && !isPortrait ? 'h-full game-canvas-wrapper' : 'max-w-4xl flex-1 flex flex-col justify-center'}`}
+        style={{ 
+          transform: gameState.isPlaying ? `translate(${shakeOffset.x}px, ${shakeOffset.y}px)` : undefined,
+          transition: shakeOffset.x === 0 && shakeOffset.y === 0 ? 'transform 0.1s ease-out' : 'none'
+        }}
+      >
         <GameCanvas
           player={player}
           obstacles={obstacles}

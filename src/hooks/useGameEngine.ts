@@ -23,10 +23,13 @@ interface SkinAbilities {
 
 interface GameEngineOptions {
   isVip?: boolean;
+  onPlayerDamage?: () => void;
+  onBossDefeat?: () => void;
+  onPlayerHit?: () => void;
 }
 
 export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }, options: GameEngineOptions = {}) {
-  const { isVip = false } = options;
+  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit } = options;
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
     isPaused: false,
@@ -314,7 +317,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     audioManager.stopBGM();
     setGameState(prev => ({ ...prev, isGameOver: true, isPlaying: false }));
     setParticles(current => [...current, ...createParticles(player.x + PLAYER_WIDTH / 2, player.y + PLAYER_HEIGHT / 2, ['#FF6B6B', '#FFE66D', '#4ECDC4'], 20)]);
-  }, [player.x, player.y, createParticles]);
+    onPlayerDamage?.();
+  }, [player.x, player.y, createParticles, onPlayerDamage]);
 
   const revive = useCallback(() => {
     if (!gameState.canRevive || gameState.hasRevived) return;
@@ -637,6 +641,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
                 setDefeatedBosses(prev => [...prev, prevBoss.type]);
                 setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
                 audioManager.playBossDefeated();
+                onBossDefeat?.();
                 
                 handleBossDefeat(prevBoss);
                 return null;
@@ -715,6 +720,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
               setGameState(gs => ({ ...gs, activePowerUps: gs.activePowerUps.filter(p => p.type !== 'shield') }));
               setParticles(p => [...p, ...createParticles(player.x + PLAYER_WIDTH / 2, player.y + PLAYER_HEIGHT / 2, ['#00BFFF', '#87CEEB'], 10)]);
               newBoss.projectiles = newBoss.projectiles.filter(p => p.id !== projectile.id);
+              onPlayerHit?.();
             } else {
               endGame();
               return newBoss;
@@ -752,6 +758,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             setDefeatedBosses(prev => [...prev, prevBoss.type]);
             setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
             audioManager.playBossDefeated();
+            onBossDefeat?.();
             
             handleBossDefeat(prevBoss);
             return null;
