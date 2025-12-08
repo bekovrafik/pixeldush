@@ -1521,7 +1521,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
-  const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, currentHealth: number, currentMaxHealth: number, powerUps: ActivePowerUp[], showVipBadge: boolean) => {
+  const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, currentHealth: number, currentMaxHealth: number, powerUps: ActivePowerUp[], showVipBadge: boolean, currentWeapon: WeaponType | null = null, currentAmmo: number = 0) => {
     // Score display (top right)
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(CANVAS_WIDTH - 150, 10, 140, 40);
@@ -1634,37 +1634,91 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.fillText('2x', 122, 69);
     }
     
-    // Power-up indicators (next to hearts)
-    const powerUpStartX = 110;
+  // Power-up indicators (compact, mobile-friendly - next to hearts)
+    const powerUpStartX = 100;
     powerUps.forEach((pu, i) => {
-      const x = powerUpStartX + i * 45;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.fillRect(x, 10, 40, 40);
-      ctx.fillStyle = pu.type === 'shield' ? '#00BFFF' : pu.type === 'magnet' ? '#FF00FF' : '#FFD700';
-      ctx.fillRect(x, 10 + 40 * (1 - pu.remainingTime / 300), 40, 40 * (pu.remainingTime / 300));
-      ctx.font = '16px Arial';
+      const x = powerUpStartX + i * 35;
+      const remainingPercent = pu.remainingTime / 300;
+      
+      // Background box
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.beginPath();
+      ctx.roundRect(x, 52, 32, 32, 4);
+      ctx.fill();
+      
+      // Fill based on remaining time
+      ctx.fillStyle = pu.type === 'shield' ? 'rgba(0, 191, 255, 0.6)' : pu.type === 'magnet' ? 'rgba(255, 0, 255, 0.6)' : 'rgba(255, 215, 0, 0.6)';
+      ctx.beginPath();
+      ctx.roundRect(x, 52 + 32 * (1 - remainingPercent), 32, 32 * remainingPercent, 4);
+      ctx.fill();
+      
+      // Border
+      ctx.strokeStyle = pu.type === 'shield' ? '#00BFFF' : pu.type === 'magnet' ? '#FF00FF' : '#FFD700';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x, 52, 32, 32, 4);
+      ctx.stroke();
+      
+      // Icon
+      ctx.font = '14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', x + 20, 35);
+      ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', x + 16, 72);
     });
+    
+    // Weapon/Ammo display in header (right side, below score)
+    if (currentWeapon && currentAmmo > 0) {
+      const weaponConfig = WEAPON_CONFIGS[currentWeapon];
+      const weaponX = CANVAS_WIDTH - 80;
+      const weaponY = 52;
+      
+      // Background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.beginPath();
+      ctx.roundRect(weaponX, weaponY, 70, 32, 4);
+      ctx.fill();
+      
+      // Border with weapon color
+      ctx.strokeStyle = weaponConfig.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(weaponX, weaponY, 70, 32, 4);
+      ctx.stroke();
+      
+      // Glow effect
+      ctx.shadowColor = weaponConfig.color;
+      ctx.shadowBlur = 8;
+      
+      // Weapon icon
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(weaponConfig.emoji, weaponX + 6, weaponY + 22);
+      
+      // Ammo count
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '10px "Press Start 2P", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`x${currentAmmo}`, weaponX + 62, weaponY + 22);
+    }
   }, []);
 
   const drawBossProgressBar = useCallback((ctx: CanvasRenderingContext2D, currentDistance: number) => {
     const BOSS_TRIGGER_DISTANCE = 5000; // ARENA_TRIGGER_DISTANCE (updated)
     const progress = Math.min(currentDistance / BOSS_TRIGGER_DISTANCE, 1);
     
-    // Don't show if already at boss
+    // Don't show if already at boss or past threshold
     if (progress >= 1) return;
     
     ctx.save();
     
-    // Bar dimensions and position (below score HUD)
-    const barWidth = 300;
-    const barHeight = 16;
+    // Bar dimensions and position (positioned in center, but lower to avoid overlap)
+    const barWidth = 260;
+    const barHeight = 14;
     const barX = (CANVAS_WIDTH - barWidth) / 2;
-    const barY = 56;
+    const barY = 92;
     
     // Background with dark overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.beginPath();
     ctx.roundRect(barX - 5, barY - 5, barWidth + 10, barHeight + 28, 8);
     ctx.fill();
@@ -2127,15 +2181,18 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     }
     
     // UI elements
-    drawUI(ctx, score, coinCount, health, maxHealth, activePowerUps, isVip);
+    drawUI(ctx, score, coinCount, health, maxHealth, activePowerUps, isVip, activeWeapon, weaponAmmo);
     drawComboIndicator(ctx, comboCount, player.y);
     
-    // Show boss progress bar when NOT in boss arena
+    // Show boss progress bar ONLY when NOT in boss arena AND no boss active AND no warning
     const isInBossArena = bossArena?.isActive || (bossArena && (bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || bossArena.isEndlessMode));
-    if (!isInBossArena && !bossWarning && isPlaying) {
+    const hasBossActive = !!boss;
+    
+    if (!isInBossArena && !hasBossActive && !bossWarning && isPlaying) {
       drawBossProgressBar(ctx, distance);
     }
     
+    // Only show boss arena UI when actually in arena (not when progress bar is showing)
     if (isInBossArena && bossArena) {
       drawBossArenaUI(ctx, bossArena);
     }
@@ -2236,7 +2293,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchBlockRef = useRef(false);
 

@@ -584,43 +584,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       }
     }
     
-    // Legacy boss spawn
-    if (!bossArena) {
-      for (const bossConfig of BOSS_CONFIGS) {
-        const warningDistance = bossConfig.triggerDistance - 200;
-        
-        if (!bossSpawnedRef.current.has(bossConfig.type) && 
-            currentDistance >= warningDistance && 
-            currentDistance < bossConfig.triggerDistance &&
-            !bossWarning) {
-          const countdown = Math.ceil((bossConfig.triggerDistance - currentDistance) / gameState.speed / 60);
-          setBossWarning({ name: bossConfig.name, countdown: Math.max(1, countdown) });
-          audioManager.playBossWarning();
-        }
-        
-        if (!bossSpawnedRef.current.has(bossConfig.type) && 
-            currentDistance >= bossConfig.triggerDistance && 
-            currentDistance < bossConfig.triggerDistance + 100) {
-          bossSpawnedRef.current.add(bossConfig.type);
-          setBossWarning(null);
-          setBoss({
-            id: bossConfig.type,
-            x: 850,
-            y: GROUND_Y - bossConfig.height,
-            width: bossConfig.width,
-            height: bossConfig.height,
-            health: bossConfig.health,
-            maxHealth: bossConfig.health,
-            type: bossConfig.type,
-            phase: 1,
-            attackTimer: bossConfig.attackInterval,
-            isAttacking: false,
-            projectiles: [],
-          });
-          onBossSpawn?.(bossConfig.type);
-        }
-      }
-    }
+    // NOTE: Legacy boss spawns disabled - all bosses now handled through Boss Arena system
+    // This prevents individual bosses from spawning before the arena is triggered
     
     if (bossWarning && bossWarning.countdown > 0) {
       setBossWarning(prev => prev ? { ...prev, countdown: Math.max(0, prev.countdown - 0.016) } : null);
