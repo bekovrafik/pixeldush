@@ -182,13 +182,19 @@ export function MobileHomeScreen({
               <button
                 key={mode.id}
                 onClick={() => handleModeSelect(mode.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all active:scale-95 ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-200 active:scale-95 ${
                   selectedMode === mode.id
-                    ? `${mode.bgColor} border-white/30 text-white shadow-md`
-                    : 'bg-muted/40 border-border/30 text-muted-foreground'
+                    ? `${mode.bgColor} border-white/30 text-white shadow-md scale-105`
+                    : 'bg-muted/40 border-border/30 text-muted-foreground hover:bg-muted/60 hover:scale-102'
                 }`}
+                style={{
+                  transform: selectedMode === mode.id ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
               >
-                {mode.icon}
+                <span className={`transition-transform duration-200 ${selectedMode === mode.id ? 'scale-110' : ''}`}>
+                  {mode.icon}
+                </span>
                 <span className="font-pixel text-[10px]">{mode.name}</span>
               </button>
             ))}
@@ -197,11 +203,11 @@ export function MobileHomeScreen({
           {/* PLAY Button */}
           <Button 
             onClick={handlePlayPress}
-            className={`w-full h-16 text-xl font-pixel rounded-2xl shadow-2xl ${currentMode.bgColor} hover:opacity-90 transition-all active:scale-95 border-2 border-white/20 relative overflow-hidden`}
+            className={`w-full h-12 text-lg font-pixel rounded-xl shadow-lg ${currentMode.bgColor} hover:opacity-90 transition-all duration-200 active:scale-95 border border-white/20 relative overflow-hidden`}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            <div className="relative flex items-center gap-3">
-              <Play className="w-7 h-7 fill-current" />
+            <div className="relative flex items-center gap-2">
+              <Play className="w-5 h-5 fill-current" />
               <span>PLAY</span>
             </div>
           </Button>
