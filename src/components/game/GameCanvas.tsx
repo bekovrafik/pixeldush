@@ -753,6 +753,111 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     });
   }, []);
 
+  const drawBossProgressBar = useCallback((ctx: CanvasRenderingContext2D, currentScore: number) => {
+    const BOSS_TRIGGER_DISTANCE = 2000; // ARENA_TRIGGER_DISTANCE
+    const progress = Math.min(currentScore / BOSS_TRIGGER_DISTANCE, 1);
+    
+    // Don't show if already at boss
+    if (progress >= 1) return;
+    
+    ctx.save();
+    
+    // Bar dimensions and position (below score HUD)
+    const barWidth = 300;
+    const barHeight = 16;
+    const barX = (CANVAS_WIDTH - barWidth) / 2;
+    const barY = 56;
+    
+    // Background with dark overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.beginPath();
+    ctx.roundRect(barX - 5, barY - 5, barWidth + 10, barHeight + 28, 8);
+    ctx.fill();
+    
+    // Border glow that intensifies as player gets closer
+    const glowIntensity = 0.3 + progress * 0.7;
+    const pulseEffect = Math.sin(Date.now() / 200) * 0.1 * progress;
+    ctx.strokeStyle = `rgba(255, ${Math.floor(100 - progress * 100)}, 0, ${glowIntensity + pulseEffect})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(barX - 5, barY - 5, barWidth + 10, barHeight + 28, 8);
+    ctx.stroke();
+    
+    // Title text
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '6px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚔️ BOSS ARENA', CANVAS_WIDTH / 2, barY + 5);
+    
+    // Progress bar background
+    ctx.fillStyle = 'rgba(80, 20, 20, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY + 10, barWidth, barHeight, 4);
+    ctx.fill();
+    
+    // Progress bar fill with gradient
+    if (progress > 0) {
+      const gradient = ctx.createLinearGradient(barX, 0, barX + barWidth * progress, 0);
+      gradient.addColorStop(0, '#8B0000');
+      gradient.addColorStop(0.5, '#FF4500');
+      gradient.addColorStop(1, '#FFD700');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(barX, barY + 10, barWidth * progress, barHeight, 4);
+      ctx.fill();
+      
+      // Animated shine effect on the bar
+      const shinePos = ((Date.now() / 20) % (barWidth + 40)) - 20;
+      if (shinePos < barWidth * progress) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(barX, barY + 10, barWidth * progress, barHeight);
+        ctx.clip();
+        const shineGradient = ctx.createLinearGradient(shinePos - 10, 0, shinePos + 30, 0);
+        shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+        shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = shineGradient;
+        ctx.fillRect(shinePos, barY + 10, 40, barHeight);
+        ctx.restore();
+      }
+    }
+    
+    // Progress text
+    const remaining = BOSS_TRIGGER_DISTANCE - currentScore;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '7px "Press Start 2P", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${Math.floor(currentScore)}`, barX + 5, barY + 21);
+    
+    ctx.textAlign = 'right';
+    ctx.fillStyle = progress > 0.8 ? '#FFD700' : '#888888';
+    ctx.fillText(`${BOSS_TRIGGER_DISTANCE}m`, barX + barWidth - 5, barY + 21);
+    
+    // Boss icon at the end
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    const bossIconX = barX + barWidth + 15;
+    const iconPulse = progress > 0.8 ? 1 + Math.sin(Date.now() / 100) * 0.15 : 1;
+    ctx.save();
+    ctx.translate(bossIconX, barY + 18);
+    ctx.scale(iconPulse, iconPulse);
+    ctx.fillText('👹', 0, 0);
+    ctx.restore();
+    
+    // "CYBER MECH" text if close
+    if (progress > 0.7) {
+      const textAlpha = (progress - 0.7) / 0.3;
+      ctx.globalAlpha = textAlpha;
+      ctx.fillStyle = '#FF4444';
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('CYBER MECH INCOMING!', CANVAS_WIDTH / 2, barY + 38);
+    }
+    
+    ctx.restore();
+  }, []);
+
   const drawBossWarning = useCallback((ctx: CanvasRenderingContext2D, warning: { name: string; countdown: number }) => {
     ctx.save();
     
@@ -1098,7 +1203,14 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     // UI elements
     drawUI(ctx, score, coinCount, activePowerUps, isVip);
     drawComboIndicator(ctx, comboCount, player.y);
-    if (bossArena?.isActive || (bossArena && (bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || bossArena.isEndlessMode))) {
+    
+    // Show boss progress bar when NOT in boss arena
+    const isInBossArena = bossArena?.isActive || (bossArena && (bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || bossArena.isEndlessMode));
+    if (!isInBossArena && !bossWarning && isPlaying) {
+      drawBossProgressBar(ctx, score);
+    }
+    
+    if (isInBossArena && bossArena) {
       drawBossArenaUI(ctx, bossArena);
     }
     if (bossWarning) drawBossWarning(ctx, bossWarning);
@@ -1198,7 +1310,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchedRef = useRef(false);
 
