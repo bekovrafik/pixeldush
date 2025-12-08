@@ -562,6 +562,7 @@ export default function Index() {
           bossWarning={bossWarning}
           bossArena={bossArena}
           score={gameState.score}
+          distance={gameState.distance}
           coinCount={gameState.coins}
           speed={gameState.speed}
           isPlaying={gameState.isPlaying}
