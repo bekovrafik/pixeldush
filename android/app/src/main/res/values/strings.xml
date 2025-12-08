@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pixel Runner</string>
+    <string name="title_activity_main">Pixel Runner</string>
+    <string name="package_name">com.pixeldush.app</string>
+    <string name="custom_url_scheme">com.pixeldush.app</string>
+</resources>

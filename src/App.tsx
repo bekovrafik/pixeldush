@@ -11,6 +11,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Support from "./pages/Support";
 import PlayerStats from "./pages/PlayerStats";
 import { admobManager } from "./lib/admobManager";
+import { purchaseManager } from "./lib/purchaseManager";
 
 const queryClient = new QueryClient();
 
@@ -18,9 +19,13 @@ const App = () => {
   useEffect(() => {
     // Initialize AdMob when app starts on native platform
     if (Capacitor.isNativePlatform()) {
+      // Initialize AdMob
       admobManager.initialize().then(() => {
         admobManager.prepareRewardedAd();
       });
+
+      // Initialize RevenueCat
+      purchaseManager.initialize();
     }
   }, []);
 

@@ -1,9 +1,5 @@
 {
-  "appId": "app.lovable.117d2a102c0e45f19de68106ff98d63d",
+  "appId": "com.pixeldush.app",
   "appName": "Pixel Runner",
-  "webDir": "dist",
-  "server": {
-    "url": "https://117d2a10-2c0e-45f1-9de6-8106ff98d63d.lovableproject.com?forceHideBadge=true",
-    "cleartext": true
-  }
+  "webDir": "dist"
 }
