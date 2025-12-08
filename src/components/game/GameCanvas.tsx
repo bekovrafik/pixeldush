@@ -1200,17 +1200,22 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     }
   }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossWarning, drawBossArenaUI]);
 
+  const touchedRef = useRef(false);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
+    touchedRef.current = true;
     onTap();
+    // Reset after a short delay to allow future mouse clicks
+    setTimeout(() => {
+      touchedRef.current = false;
+    }, 100);
   }, [onTap]);
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    // Only handle click if it's not from a touch event
-    // Touch events will be handled by onTouchStart
-    if (e.detail > 0) { // detail is 0 for keyboard-triggered clicks
-      onTap();
-    }
+  const handleClick = useCallback(() => {
+    // Skip if this is a synthetic mouse event from a touch
+    if (touchedRef.current) return;
+    onTap();
   }, [onTap]);
 
   return (
