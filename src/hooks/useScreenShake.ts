@@ -47,11 +47,15 @@ export function useScreenShake() {
   }, [shake]);
 
   const shakeOnBossDefeat = useCallback(() => {
-    shake({ intensity: 15, duration: 500 });
+    shake({ intensity: 20, duration: 600 });
   }, [shake]);
 
   const shakeOnHit = useCallback(() => {
     shake({ intensity: 4, duration: 100 });
+  }, [shake]);
+
+  const shakeOnBossHit = useCallback(() => {
+    shake({ intensity: 6, duration: 80 });
   }, [shake]);
 
   return {
@@ -60,5 +64,6 @@ export function useScreenShake() {
     shakeOnDamage,
     shakeOnBossDefeat,
     shakeOnHit,
+    shakeOnBossHit,
   };
 }

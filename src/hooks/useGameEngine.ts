@@ -26,13 +26,14 @@ interface GameEngineOptions {
   onPlayerDamage?: () => void;
   onBossDefeat?: () => void;
   onPlayerHit?: () => void;
+  onBossHit?: () => void;
   onPowerUpCollect?: (type: string, x: number, y: number) => void;
   onWeaponCollect?: (type: string, x: number, y: number) => void;
   onBossSpawn?: (bossType: string) => void;
 }
 
 export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }, options: GameEngineOptions = {}) {
-  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit, onPowerUpCollect, onWeaponCollect, onBossSpawn } = options;
+  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit, onBossHit, onPowerUpCollect, onWeaponCollect, onBossSpawn } = options;
   const [justPickedUpWeapon, setJustPickedUpWeapon] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
@@ -633,8 +634,9 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
                 comboTimer: COMBO_TIMEOUT,
               }));
               
-              setParticles(p => [...p, ...createParticles(proj.x, proj.y, ['#FF4444', '#FF8844', '#FFCC44'], 10)]);
+              setParticles(p => [...p, ...createParticles(proj.x, proj.y, ['#FF4444', '#FF8844', '#FFCC44'], 12)]);
               audioManager.playBossHit();
+              onBossHit?.();
               
               if (newHealth <= 0) {
                 // Boss defeated
