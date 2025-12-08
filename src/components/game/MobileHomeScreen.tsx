@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Swords, Users, BarChart3, Volume2, VolumeX, DollarSign } from 'lucide-react';
+import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Swords, Users, BarChart3, Volume2, VolumeX, DollarSign, RotateCw, Award, Globe, Coins, Timer, Infinity } from 'lucide-react';
 import { WORLD_CONFIGS, WorldTheme } from '@/types/game';
 import { hapticsManager } from '@/lib/hapticsManager';
 
@@ -28,6 +28,12 @@ interface MobileHomeScreenProps {
   onToggleMute: () => void;
   onOpenStats: () => void;
   onOpenIAPShop: () => void;
+  onOpenSpinWheel: () => void;
+  onOpenAchievements: () => void;
+  onOpenWorlds: () => void;
+  onOpenCoinStore: () => void;
+  onOpenBossRushLeaderboard: () => void;
+  onOpenBossRushChallenges: () => void;
 }
 
 type GameMode = 'normal' | 'rush' | 'endless';
@@ -62,6 +68,12 @@ export function MobileHomeScreen({
   onToggleMute,
   onOpenStats,
   onOpenIAPShop,
+  onOpenSpinWheel,
+  onOpenAchievements,
+  onOpenWorlds,
+  onOpenCoinStore,
+  onOpenBossRushLeaderboard,
+  onOpenBossRushChallenges,
 }: MobileHomeScreenProps) {
   const [selectedMode, setSelectedMode] = useState<GameMode>(
     rushModeEnabled ? 'rush' : endlessModeEnabled ? 'endless' : 'normal'
@@ -217,7 +229,7 @@ export function MobileHomeScreen({
 
         {/* Quick Features Grid */}
         <div className="w-full max-w-sm">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2">
             <FeatureButton 
               icon={Gift} 
               label="Daily" 
@@ -251,6 +263,56 @@ export function MobileHomeScreen({
               borderColor="border-red-500/30"
               onClick={() => handleButtonPress(onOpenBossCollection)} 
             />
+            <FeatureButton 
+              icon={RotateCw} 
+              label="Spin" 
+              color="text-purple-400"
+              bgColor="bg-purple-500/10"
+              borderColor="border-purple-500/30"
+              onClick={() => handleButtonPress(onOpenSpinWheel)} 
+            />
+            <FeatureButton 
+              icon={Award} 
+              label="Badges" 
+              color="text-yellow-400"
+              bgColor="bg-yellow-500/10"
+              borderColor="border-yellow-500/30"
+              onClick={() => handleButtonPress(onOpenAchievements)} 
+            />
+            <FeatureButton 
+              icon={Globe} 
+              label="Worlds" 
+              color="text-blue-400"
+              bgColor="bg-blue-500/10"
+              borderColor="border-blue-500/30"
+              onClick={() => handleButtonPress(onOpenWorlds)} 
+            />
+            <FeatureButton 
+              icon={Coins} 
+              label="Free" 
+              color="text-amber-400"
+              bgColor="bg-amber-500/10"
+              borderColor="border-amber-500/30"
+              onClick={() => handleButtonPress(onOpenCoinStore)} 
+            />
+          </div>
+          
+          {/* Rush Mode Features */}
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <button
+              onClick={() => handleButtonPress(onOpenBossRushLeaderboard)}
+              className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/30 transition-all active:scale-95"
+            >
+              <Timer className="w-4 h-4 text-orange-400" />
+              <span className="font-pixel text-[9px] text-muted-foreground">Rush Ranks</span>
+            </button>
+            <button
+              onClick={() => handleButtonPress(onOpenBossRushChallenges)}
+              className="flex items-center gap-2 p-2 rounded-lg bg-pink-500/10 border border-pink-500/30 transition-all active:scale-95"
+            >
+              <Infinity className="w-4 h-4 text-pink-400" />
+              <span className="font-pixel text-[9px] text-muted-foreground">Rush Tasks</span>
+            </button>
           </div>
         </div>
       </main>
@@ -283,15 +345,15 @@ function FeatureButton({ icon: Icon, label, color, bgColor, borderColor, badge, 
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-col items-center justify-center p-3 rounded-xl ${bgColor} border ${borderColor} transition-all active:scale-95 min-h-[70px]`}
+      className={`relative flex flex-col items-center justify-center p-2 rounded-lg ${bgColor} border ${borderColor} transition-all active:scale-95 min-h-[56px]`}
     >
       {badge && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-bounce">
+        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center animate-bounce">
           {badge}
         </span>
       )}
-      <Icon className={`w-6 h-6 ${color} mb-1`} />
-      <span className="font-pixel text-[9px] text-muted-foreground">{label}</span>
+      <Icon className={`w-5 h-5 ${color} mb-0.5`} />
+      <span className="font-pixel text-[8px] text-muted-foreground">{label}</span>
     </button>
   );
 }
