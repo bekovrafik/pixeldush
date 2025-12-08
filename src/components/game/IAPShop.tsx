@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Coins, Sparkles, Crown, RotateCcw, Flame, Zap, TrendingUp, Check } from 'lucide-react';
+import { Coins, Sparkles, Crown, RotateCcw, Flame, Zap, TrendingUp, Check, Eye, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { COIN_PACKS, PREMIUM_SKINS, purchaseManager } from '@/lib/purchaseManager';
+import { COIN_PACKS, PREMIUM_SKINS, purchaseManager, PremiumSkin } from '@/lib/purchaseManager';
 import { supabase } from '@/integrations/supabase/client';
+import { audioManager } from '@/lib/audioManager';
 
 interface IAPShopProps {
   isOpen: boolean;
@@ -74,6 +75,97 @@ const Sparkle = ({ delay, size, left, top }: { delay: number; size: number; left
   </div>
 );
 
+// Skin Preview Modal Component
+const SkinPreviewModal = ({ 
+  skin, 
+  onClose 
+}: { 
+  skin: PremiumSkin; 
+  onClose: () => void; 
+}) => {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-[90vw] max-w-sm bg-card border border-primary/30 rounded-xl p-6 animate-scale-in">
+        {/* Close button */}
+        <button 
+          onClick={() => { audioManager.playClick(); onClose(); }}
+          className="absolute top-3 right-3 p-1 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        
+        <h3 className="font-pixel text-lg text-center text-primary mb-4">TRY ON PREVIEW</h3>
+        
+        {/* Large preview */}
+        <div className="flex justify-center mb-6">
+          <div 
+            className="w-32 h-32 rounded-xl flex items-center justify-center relative overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, ${skin.previewColors.join(', ')})`,
+              boxShadow: `0 0 30px ${skin.previewColors[0]}50, 0 0 60px ${skin.previewColors[0]}30`,
+            }}
+          >
+            {/* Animated glow ring */}
+            <div 
+              className="absolute inset-0 rounded-xl"
+              style={{
+                background: `conic-gradient(from 0deg, transparent, ${skin.previewColors[0]}, transparent, ${skin.previewColors[1]}, transparent)`,
+                animation: 'spin 3s linear infinite',
+              }}
+            />
+            <div 
+              className="absolute inset-[3px] rounded-lg"
+              style={{ background: `linear-gradient(135deg, ${skin.previewColors.join(', ')})` }}
+            />
+            
+            {/* Character silhouette */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-20 bg-black/20 rounded-t-full rounded-b-lg backdrop-blur-sm" />
+            </div>
+            
+            {/* Sparkles */}
+            <Sparkle delay={0} size={10} left="10%" top="10%" />
+            <Sparkle delay={200} size={8} left="80%" top="15%" />
+            <Sparkle delay={400} size={9} left="15%" top="75%" />
+            <Sparkle delay={600} size={7} left="85%" top="80%" />
+            <Sparkle delay={800} size={8} left="50%" top="5%" />
+            
+            {/* Emoji */}
+            <span className="text-5xl relative z-10 drop-shadow-lg">{skin.iconEmoji}</span>
+            
+            {/* Shine */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-60" />
+          </div>
+        </div>
+        
+        {/* Skin info */}
+        <div className="text-center space-y-2">
+          <h4 className="font-pixel text-lg text-foreground">{skin.name}</h4>
+          <p className="text-sm text-muted-foreground">{skin.description}</p>
+          
+          {/* Color palette */}
+          <div className="flex justify-center gap-2 pt-2">
+            {skin.previewColors.map((color, idx) => (
+              <div 
+                key={idx}
+                className="w-6 h-6 rounded-full border-2 border-white/30"
+                style={{ 
+                  backgroundColor: color,
+                  boxShadow: `0 0 12px ${color}80`
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        
+        <p className="text-[10px] text-muted-foreground text-center mt-4">
+          Preview only - purchase to equip this skin
+        </p>
+      </div>
+    </div>
+  );
+};
+
 export function IAPShop({
   isOpen,
   onClose,
@@ -86,8 +178,15 @@ export function IAPShop({
 }: IAPShopProps) {
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'coins' | 'skins'>('coins');
+  const [previewSkin, setPreviewSkin] = useState<PremiumSkin | null>(null);
+
+  const handleHover = useCallback(() => {
+    audioManager.playHover();
+  }, []);
 
   const handlePurchaseCoins = async (packId: string, coins: number) => {
+    audioManager.playClick();
+    
     if (!isLoggedIn || !profileId) {
       onOpenAuth();
       return;
@@ -105,6 +204,7 @@ export function IAPShop({
           .eq('id', profileId);
 
         if (!error) {
+          audioManager.playPurchase();
           toast.success(`🎉 You received ${coins} coins!`);
           onPurchaseComplete();
         } else {
@@ -123,6 +223,8 @@ export function IAPShop({
   };
 
   const handlePurchaseSkin = async (skinId: string, productId: string) => {
+    audioManager.playClick();
+    
     if (!isLoggedIn || !profileId) {
       onOpenAuth();
       return;
@@ -139,6 +241,7 @@ export function IAPShop({
           .insert({ profile_id: profileId, skin_id: skinId });
 
         if (!error) {
+          audioManager.playPurchase();
           toast.success('🎨 Skin unlocked!');
           onPurchaseComplete();
         } else {
@@ -157,16 +260,23 @@ export function IAPShop({
   };
 
   const handleRestorePurchases = async () => {
+    audioManager.playClick();
     setPurchasing('restore');
     const result = await purchaseManager.restorePurchases();
     setPurchasing(null);
 
     if (result.success) {
+      audioManager.playPurchase();
       toast.success('Purchases restored!');
       onPurchaseComplete();
     } else {
       toast.error(result.error || 'Failed to restore purchases');
     }
+  };
+
+  const handleTryOn = (skin: PremiumSkin) => {
+    audioManager.playSelect();
+    setPreviewSkin(skin);
   };
 
   const isSkinOwned = (skinId: string) => ownedSkinIds.includes(skinId);
@@ -213,10 +323,11 @@ export function IAPShop({
               {COIN_PACKS.map((pack) => (
                 <div
                   key={pack.id}
-                  className={`relative flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-lg border transition-all ${
+                  onMouseEnter={handleHover}
+                  className={`relative flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-lg border transition-all cursor-pointer ${
                     pack.popular
-                      ? 'bg-accent/10 border-accent/50 ring-1 ring-accent/30'
-                      : 'bg-card/50 border-border hover:border-primary/50'
+                      ? 'bg-accent/10 border-accent/50 ring-1 ring-accent/30 hover:ring-accent/50'
+                      : 'bg-card/50 border-border hover:border-primary/50 hover:bg-card/80'
                   }`}
                 >
                   {pack.popular && (
@@ -236,6 +347,7 @@ export function IAPShop({
 
                   <Button
                     onClick={() => handlePurchaseCoins(pack.productId, pack.coins)}
+                    onMouseEnter={handleHover}
                     disabled={purchasing !== null}
                     className="game-button text-[10px] sm:text-xs px-2 sm:px-4 h-7 sm:h-9 flex-shrink-0"
                   >
@@ -251,6 +363,7 @@ export function IAPShop({
                 return (
                   <div
                     key={skin.id}
+                    onMouseEnter={handleHover}
                     className={`relative flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border transition-all group ${
                       owned
                         ? 'bg-primary/5 border-primary/40 ring-1 ring-primary/20'
@@ -272,9 +385,11 @@ export function IAPShop({
                       </div>
                     )}
 
-                    {/* Skin Preview with animated effects */}
-                    <div 
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
+                    {/* Skin Preview with animated effects - clickable for try on */}
+                    <button 
+                      onClick={() => !owned && handleTryOn(skin)}
+                      disabled={owned}
+                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden group-hover:scale-105 transition-transform duration-300 disabled:cursor-default"
                       style={{
                         background: `linear-gradient(135deg, ${skin.previewColors.join(', ')})`,
                         boxShadow: owned 
@@ -282,6 +397,13 @@ export function IAPShop({
                           : `0 0 10px ${skin.previewColors[0]}30`,
                       }}
                     >
+                      {/* Try On overlay for non-owned */}
+                      {!owned && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity z-20 rounded-lg">
+                          <Eye className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                      
                       {/* Animated glow ring */}
                       <div 
                         className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -313,7 +435,7 @@ export function IAPShop({
                       <div 
                         className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"
                       />
-                    </div>
+                    </button>
 
                     <div className="flex-1 min-w-0 pt-1">
                       <p className="font-pixel text-[10px] sm:text-sm text-foreground truncate">{skin.name}</p>
@@ -334,21 +456,36 @@ export function IAPShop({
                       </div>
                     </div>
 
-                    {owned ? (
-                      <div className="flex items-center gap-1 px-2 sm:px-3 h-7 sm:h-9 rounded-md bg-primary/20 text-primary text-[10px] sm:text-xs font-pixel mt-1">
-                        <Check className="w-3 h-3" />
-                        OWNED
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => handlePurchaseSkin(skin.id, skin.productId)}
-                        disabled={purchasing !== null}
-                        variant="outline"
-                        className="border-secondary/50 text-[10px] sm:text-xs px-2 sm:px-4 h-7 sm:h-9 flex-shrink-0 mt-1 hover:bg-secondary/20 hover:border-secondary transition-colors"
-                      >
-                        {purchasing === skin.id ? '...' : skin.price}
-                      </Button>
-                    )}
+                    <div className="flex flex-col gap-1 mt-1">
+                      {owned ? (
+                        <div className="flex items-center gap-1 px-2 sm:px-3 h-7 sm:h-9 rounded-md bg-primary/20 text-primary text-[10px] sm:text-xs font-pixel">
+                          <Check className="w-3 h-3" />
+                          OWNED
+                        </div>
+                      ) : (
+                        <>
+                          <Button
+                            onClick={() => handleTryOn(skin)}
+                            onMouseEnter={handleHover}
+                            variant="ghost"
+                            size="sm"
+                            className="text-[9px] sm:text-[10px] h-6 px-2 text-muted-foreground hover:text-foreground"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            TRY ON
+                          </Button>
+                          <Button
+                            onClick={() => handlePurchaseSkin(skin.id, skin.productId)}
+                            onMouseEnter={handleHover}
+                            disabled={purchasing !== null}
+                            variant="outline"
+                            className="border-secondary/50 text-[10px] sm:text-xs px-2 sm:px-4 h-7 sm:h-9 hover:bg-secondary/20 hover:border-secondary transition-colors"
+                          >
+                            {purchasing === skin.id ? '...' : skin.price}
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -361,6 +498,7 @@ export function IAPShop({
           variant="ghost"
           size="sm"
           onClick={handleRestorePurchases}
+          onMouseEnter={handleHover}
           disabled={purchasing !== null}
           className="w-full text-xs text-muted-foreground hover:text-foreground"
         >
@@ -374,6 +512,14 @@ export function IAPShop({
           </p>
         )}
       </DialogContent>
+      
+      {/* Skin Preview Modal */}
+      {previewSkin && (
+        <SkinPreviewModal 
+          skin={previewSkin} 
+          onClose={() => setPreviewSkin(null)} 
+        />
+      )}
     </Dialog>
   );
 }
