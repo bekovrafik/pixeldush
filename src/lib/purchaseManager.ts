@@ -16,6 +16,9 @@ export interface PremiumSkin {
   description: string;
   productId: string;
   price: string;
+  badge?: 'popular' | 'best_value' | 'new';
+  previewColors: string[]; // Gradient colors for preview
+  iconEmoji: string;
 }
 
 // Define your product IDs (must match RevenueCat/App Store/Play Store)
@@ -27,10 +30,45 @@ export const COIN_PACKS: CoinPack[] = [
 ];
 
 export const PREMIUM_SKINS: PremiumSkin[] = [
-  { id: 'skin_golden', name: 'Golden Runner', description: 'Shimmering gold character', productId: 'skin_golden', price: '$2.99' },
-  { id: 'skin_neon', name: 'Neon Blaze', description: 'Glowing neon effects', productId: 'skin_neon', price: '$2.99' },
-  { id: 'skin_robot', name: 'Mech Warrior', description: 'Futuristic robot skin', productId: 'skin_robot', price: '$4.99' },
-  { id: 'skin_dragon', name: 'Dragon Spirit', description: 'Legendary dragon form', productId: 'skin_dragon', price: '$4.99' },
+  { 
+    id: 'skin_golden', 
+    name: 'Golden Runner', 
+    description: 'Shimmering gold character', 
+    productId: 'skin_golden', 
+    price: '$2.99',
+    badge: 'popular',
+    previewColors: ['#FFD700', '#FFA500', '#FF8C00'],
+    iconEmoji: '✨'
+  },
+  { 
+    id: 'skin_neon', 
+    name: 'Neon Blaze', 
+    description: 'Glowing neon effects', 
+    productId: 'skin_neon', 
+    price: '$2.99',
+    badge: 'new',
+    previewColors: ['#00FFFF', '#FF00FF', '#00FF00'],
+    iconEmoji: '💫'
+  },
+  { 
+    id: 'skin_robot', 
+    name: 'Mech Warrior', 
+    description: 'Futuristic robot skin', 
+    productId: 'skin_robot', 
+    price: '$4.99',
+    previewColors: ['#708090', '#C0C0C0', '#4682B4'],
+    iconEmoji: '🤖'
+  },
+  { 
+    id: 'skin_dragon', 
+    name: 'Dragon Spirit', 
+    description: 'Legendary dragon form', 
+    productId: 'skin_dragon', 
+    price: '$4.99',
+    badge: 'best_value',
+    previewColors: ['#FF4500', '#8B0000', '#FF6347'],
+    iconEmoji: '🐉'
+  },
 ];
 
 export interface Subscription {

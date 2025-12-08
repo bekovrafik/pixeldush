@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Coins, Sparkles, Crown, RotateCcw, Star } from 'lucide-react';
+import { Coins, Sparkles, Crown, RotateCcw, Star, Flame, Zap, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { COIN_PACKS, PREMIUM_SKINS, purchaseManager } from '@/lib/purchaseManager';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +16,45 @@ interface IAPShopProps {
   onPurchaseComplete: () => void;
   onOpenAuth: () => void;
 }
+
+const BadgeIcon = ({ badge }: { badge: string }) => {
+  switch (badge) {
+    case 'popular':
+      return <Flame className="w-2.5 h-2.5" />;
+    case 'best_value':
+      return <TrendingUp className="w-2.5 h-2.5" />;
+    case 'new':
+      return <Zap className="w-2.5 h-2.5" />;
+    default:
+      return null;
+  }
+};
+
+const getBadgeLabel = (badge: string) => {
+  switch (badge) {
+    case 'popular':
+      return 'POPULAR';
+    case 'best_value':
+      return 'BEST VALUE';
+    case 'new':
+      return 'NEW';
+    default:
+      return '';
+  }
+};
+
+const getBadgeColor = (badge: string) => {
+  switch (badge) {
+    case 'popular':
+      return 'bg-orange-500';
+    case 'best_value':
+      return 'bg-emerald-500';
+    case 'new':
+      return 'bg-blue-500';
+    default:
+      return 'bg-primary';
+  }
+};
 
 export function IAPShop({
   isOpen,
@@ -187,26 +226,62 @@ export function IAPShop({
               ))}
             </div>
           ) : (
-            <div className="space-y-2 sm:space-y-3">
+            <div className="space-y-3 sm:space-y-4">
               {PREMIUM_SKINS.map((skin) => (
                 <div
                   key={skin.id}
-                  className="flex items-center gap-2 sm:gap-3 p-2 sm:p-4 rounded-lg border bg-card/50 border-border hover:border-secondary/50 transition-all"
+                  className={`relative flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border transition-all ${
+                    skin.badge
+                      ? 'bg-secondary/5 border-secondary/40 ring-1 ring-secondary/20'
+                      : 'bg-card/50 border-border hover:border-secondary/50'
+                  }`}
                 >
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-secondary/20 flex items-center justify-center flex-shrink-0">
-                    <Star className="w-5 h-5 sm:w-6 sm:h-6 text-secondary" />
+                  {/* Badge */}
+                  {skin.badge && (
+                    <div className={`absolute -top-2 left-3 px-1.5 sm:px-2 py-0.5 ${getBadgeColor(skin.badge)} rounded text-[8px] sm:text-[10px] font-pixel text-white flex items-center gap-1`}>
+                      <BadgeIcon badge={skin.badge} />
+                      {getBadgeLabel(skin.badge)}
+                    </div>
+                  )}
+
+                  {/* Skin Preview */}
+                  <div 
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(135deg, ${skin.previewColors.join(', ')})`,
+                    }}
+                  >
+                    {/* Character silhouette */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-8 h-10 sm:w-10 sm:h-12 bg-black/20 rounded-t-full rounded-b-lg backdrop-blur-sm" />
+                    </div>
+                    {/* Emoji overlay */}
+                    <span className="text-xl sm:text-2xl relative z-10">{skin.iconEmoji}</span>
+                    {/* Shine effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent" />
                   </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 pt-1">
                     <p className="font-pixel text-[10px] sm:text-sm text-foreground truncate">{skin.name}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{skin.description}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 mt-0.5">{skin.description}</p>
+                    
+                    {/* Color swatches */}
+                    <div className="flex gap-1 mt-1.5">
+                      {skin.previewColors.map((color, idx) => (
+                        <div 
+                          key={idx}
+                          className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-white/20"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
                   </div>
 
                   <Button
                     onClick={() => handlePurchaseSkin(skin.id, skin.productId)}
                     disabled={purchasing !== null}
                     variant="outline"
-                    className="border-secondary/50 text-[10px] sm:text-xs px-2 sm:px-4 h-7 sm:h-9 flex-shrink-0"
+                    className="border-secondary/50 text-[10px] sm:text-xs px-2 sm:px-4 h-7 sm:h-9 flex-shrink-0 mt-1"
                   >
                     {purchasing === skin.id ? '...' : skin.price}
                   </Button>
