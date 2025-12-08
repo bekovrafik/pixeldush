@@ -1,4 +1,4 @@
-import { Purchases, LOG_LEVEL, PurchasesPackage, CustomerInfo } from '@revenuecat/purchases-capacitor';
+import { Purchases, LOG_LEVEL, PurchasesPackage, CustomerInfo, PACKAGE_TYPE } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
 
 export interface CoinPack {
@@ -22,6 +22,7 @@ export interface PremiumSkin {
 }
 
 // Define your product IDs (must match RevenueCat/App Store/Play Store)
+// These will be updated with actual prices from RevenueCat when available
 export const COIN_PACKS: CoinPack[] = [
   { id: 'coins_100', name: 'Starter Pack', coins: 100, price: '$0.99', productId: 'coins_100' },
   { id: 'coins_500', name: 'Value Pack', coins: 500, price: '$3.99', productId: 'coins_500', popular: true },
@@ -114,16 +115,18 @@ export const SUBSCRIPTIONS: Subscription[] = [
   },
 ];
 
-// RevenueCat Offering ID
+// RevenueCat Offering ID - this is your specific offering
 const REVENUECAT_OFFERING_ID = 'ofrngec986c853f';
 
 class PurchaseManager {
   private initialized = false;
   private packages: PurchasesPackage[] = [];
   private customerInfo: CustomerInfo | null = null;
+  private productPrices: Map<string, string> = new Map();
 
   async initialize(): Promise<void> {
     if (this.initialized || !Capacitor.isNativePlatform()) {
+      console.log('[PurchaseManager] Skipping init - already initialized or not native platform');
       return;
     }
 
@@ -132,7 +135,7 @@ class PurchaseManager {
       
       const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY;
       if (!apiKey) {
-        console.error('RevenueCat API key not configured');
+        console.error('[PurchaseManager] RevenueCat API key not configured');
         return;
       }
 
@@ -141,32 +144,53 @@ class PurchaseManager {
       });
 
       this.initialized = true;
-      console.log('RevenueCat initialized successfully');
+      console.log('[PurchaseManager] RevenueCat initialized successfully');
 
-      // Fetch offerings
+      // Fetch offerings and update product prices
       await this.fetchOfferings();
     } catch (error) {
-      console.error('RevenueCat initialization failed:', error);
+      console.error('[PurchaseManager] RevenueCat initialization failed:', error);
     }
   }
 
   async fetchOfferings(): Promise<void> {
     if (!this.initialized || !Capacitor.isNativePlatform()) {
+      console.log('[PurchaseManager] Skipping fetchOfferings - not initialized or not native');
       return;
     }
 
     try {
       const offerings = await Purchases.getOfferings();
+      console.log('[PurchaseManager] All offerings:', Object.keys(offerings.all));
       
-      // Use the specific offering ID, fallback to current offering
+      // Try to get the specific offering by ID, fallback to current
       const targetOffering = offerings.all[REVENUECAT_OFFERING_ID] || offerings.current;
       
-      if (targetOffering?.availablePackages) {
+      if (targetOffering) {
+        console.log('[PurchaseManager] Using offering:', targetOffering.identifier);
+        console.log('[PurchaseManager] Available packages:', targetOffering.availablePackages.length);
+        
         this.packages = targetOffering.availablePackages;
-        console.log('Loaded packages from offering:', REVENUECAT_OFFERING_ID, this.packages.length);
+        
+        // Log each package for debugging
+        this.packages.forEach((pkg, index) => {
+          console.log(`[PurchaseManager] Package ${index}:`, {
+            identifier: pkg.identifier,
+            packageType: pkg.packageType,
+            productId: pkg.product?.identifier,
+            price: pkg.product?.priceString,
+          });
+          
+          // Store the price for each product
+          if (pkg.product) {
+            this.productPrices.set(pkg.product.identifier, pkg.product.priceString);
+          }
+        });
+      } else {
+        console.warn('[PurchaseManager] No offering found with ID:', REVENUECAT_OFFERING_ID);
       }
     } catch (error) {
-      console.error('Failed to fetch offerings:', error);
+      console.error('[PurchaseManager] Failed to fetch offerings:', error);
     }
   }
 
@@ -188,7 +212,7 @@ class PurchaseManager {
   async purchaseProduct(productId: string): Promise<{ success: boolean; error?: string }> {
     if (!Capacitor.isNativePlatform()) {
       // Simulate purchase for web/testing
-      console.log('Simulating purchase for:', productId);
+      console.log('[PurchaseManager] Simulating purchase for:', productId);
       return { success: true };
     }
 
@@ -197,13 +221,27 @@ class PurchaseManager {
     }
 
     try {
-      const result = await Purchases.purchaseStoreProduct({
-        product: { identifier: productId } as any,
-      });
+      // First try to find the package with this product ID
+      const pkg = this.packages.find(p => p.product?.identifier === productId);
+      
+      if (pkg) {
+        console.log('[PurchaseManager] Found package for product:', productId);
+        const result = await Purchases.purchasePackage({ aPackage: pkg });
+        if (result.customerInfo) {
+          this.customerInfo = result.customerInfo;
+          return { success: true };
+        }
+      } else {
+        console.log('[PurchaseManager] No package found, trying direct product purchase:', productId);
+        // Fallback to direct product purchase
+        const result = await Purchases.purchaseStoreProduct({
+          product: { identifier: productId } as any,
+        });
 
-      if (result.customerInfo) {
-        this.customerInfo = result.customerInfo;
-        return { success: true };
+        if (result.customerInfo) {
+          this.customerInfo = result.customerInfo;
+          return { success: true };
+        }
       }
 
       return { success: false, error: 'Purchase failed' };
@@ -211,24 +249,26 @@ class PurchaseManager {
       if (error.userCancelled) {
         return { success: false, error: 'Purchase cancelled' };
       }
-      console.error('Purchase error:', error);
+      console.error('[PurchaseManager] Purchase error:', error);
       return { success: false, error: error.message || 'Purchase failed' };
     }
   }
 
   async purchasePackage(packageId: string): Promise<{ success: boolean; error?: string }> {
     if (!Capacitor.isNativePlatform()) {
-      // Simulate purchase for web/testing
-      console.log('Simulating package purchase for:', packageId);
+      console.log('[PurchaseManager] Simulating package purchase for:', packageId);
       return { success: true };
     }
 
-    const pkg = this.packages.find(p => p.identifier === packageId);
+    const pkg = this.packages.find(p => p.identifier === packageId || p.product?.identifier === packageId);
     if (!pkg) {
+      console.error('[PurchaseManager] Package not found:', packageId);
+      console.log('[PurchaseManager] Available packages:', this.packages.map(p => p.identifier));
       return { success: false, error: 'Package not found' };
     }
 
     try {
+      console.log('[PurchaseManager] Purchasing package:', pkg.identifier);
       const result = await Purchases.purchasePackage({ aPackage: pkg });
 
       if (result.customerInfo) {
@@ -241,7 +281,7 @@ class PurchaseManager {
       if (error.userCancelled) {
         return { success: false, error: 'Purchase cancelled' };
       }
-      console.error('Purchase error:', error);
+      console.error('[PurchaseManager] Purchase error:', error);
       return { success: false, error: error.message || 'Purchase failed' };
     }
   }
