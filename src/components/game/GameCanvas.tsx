@@ -61,6 +61,8 @@ interface GameCanvasProps {
   distance: number;
   coinCount: number;
   speed: number;
+  health: number;
+  maxHealth: number;
   isPlaying: boolean;
   selectedSkin: string;
   world: WorldTheme;
@@ -105,7 +107,7 @@ const SKIN_COLORS: Record<string, { body: string; accent: string }> = {
   cosmic_guardian: { body: '#9400D3', accent: '#FF1493' },
 };
 
-export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 }, phaseTransition, bossDeathEffect, killCam, environmentalHazards = [], bossRage }: GameCanvasProps) {
+export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, world, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip = false, onTap, screenFlash, powerUpExplosions = [], bossIntro, bossIntroShakeOffset = { x: 0, y: 0 }, phaseTransition, bossDeathEffect, killCam, environmentalHazards = [], bossRage }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgOffsetRef = useRef(0);
   const groundOffsetRef = useRef(0);
@@ -1519,7 +1521,8 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
-  const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, powerUps: ActivePowerUp[], showVipBadge: boolean) => {
+  const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, currentHealth: number, currentMaxHealth: number, powerUps: ActivePowerUp[], showVipBadge: boolean) => {
+    // Score display (top right)
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(CANVAS_WIDTH - 150, 10, 140, 40);
     ctx.fillStyle = '#4ECDC4';
@@ -1530,6 +1533,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.fillStyle = '#888';
     ctx.fillText('SCORE', CANVAS_WIDTH - 20, 25);
     
+    // Coins display (top left)
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(10, 10, 80, 40);
     ctx.fillStyle = '#ffd700';
@@ -1539,6 +1543,48 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.beginPath();
     ctx.arc(25, 30, 8, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Health Hearts (below coins)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(10, 55, 90, 25);
+    for (let i = 0; i < currentMaxHealth; i++) {
+      const heartX = 20 + i * 25;
+      const heartY = 67;
+      const isFilled = i < currentHealth;
+      
+      // Draw heart shape
+      ctx.save();
+      if (isFilled) {
+        // Full heart - red with glow
+        ctx.shadowColor = '#FF0000';
+        ctx.shadowBlur = 5;
+        ctx.fillStyle = '#FF4444';
+      } else {
+        // Empty heart - gray
+        ctx.fillStyle = '#444444';
+      }
+      
+      // Heart path
+      ctx.beginPath();
+      ctx.moveTo(heartX, heartY - 3);
+      ctx.bezierCurveTo(heartX - 8, heartY - 10, heartX - 12, heartY, heartX, heartY + 8);
+      ctx.bezierCurveTo(heartX + 12, heartY, heartX + 8, heartY - 10, heartX, heartY - 3);
+      ctx.fill();
+      ctx.restore();
+      
+      // Pulse effect for last heart when low health
+      if (currentHealth === 1 && isFilled) {
+        const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#FF0000';
+        ctx.beginPath();
+        ctx.moveTo(heartX, heartY - 3);
+        ctx.bezierCurveTo(heartX - 8, heartY - 10, heartX - 12, heartY, heartX, heartY + 8);
+        ctx.bezierCurveTo(heartX + 12, heartY, heartX + 8, heartY - 10, heartX, heartY - 3);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
     
     // VIP Badge
     if (showVipBadge) {
@@ -1581,15 +1627,15 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       // 2x coin indicator
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.fillRect(95, 10, 35, 20);
+      ctx.fillRect(105, 55, 35, 20);
       ctx.fillStyle = '#00FF00';
       ctx.font = '8px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('2x', 112, 24);
+      ctx.fillText('2x', 122, 69);
     }
     
-    // Power-up indicators
-    const powerUpStartX = showVipBadge ? 135 : 100;
+    // Power-up indicators (next to hearts)
+    const powerUpStartX = 110;
     powerUps.forEach((pu, i) => {
       const x = powerUpStartX + i * 45;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -1603,7 +1649,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
   }, []);
 
   const drawBossProgressBar = useCallback((ctx: CanvasRenderingContext2D, currentDistance: number) => {
-    const BOSS_TRIGGER_DISTANCE = 2000; // ARENA_TRIGGER_DISTANCE
+    const BOSS_TRIGGER_DISTANCE = 5000; // ARENA_TRIGGER_DISTANCE (updated)
     const progress = Math.min(currentDistance / BOSS_TRIGGER_DISTANCE, 1);
     
     // Don't show if already at boss
@@ -2081,7 +2127,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     }
     
     // UI elements
-    drawUI(ctx, score, coinCount, activePowerUps, isVip);
+    drawUI(ctx, score, coinCount, health, maxHealth, activePowerUps, isVip);
     drawComboIndicator(ctx, comboCount, player.y);
     
     // Show boss progress bar when NOT in boss arena
@@ -2190,7 +2236,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, activePowerUps, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchBlockRef = useRef(false);
 

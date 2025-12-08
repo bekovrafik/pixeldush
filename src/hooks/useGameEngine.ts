@@ -44,6 +44,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     distance: 0,
     speed: INITIAL_SPEED,
     coins: 0,
+    health: 3,
+    maxHealth: 3,
     canRevive: true,
     hasRevived: false,
     multiplier: 1,
@@ -267,6 +269,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setGameState({
       isPlaying: true, isPaused: false, isGameOver: false,
       score: 0, distance: 0, speed: INITIAL_SPEED, coins: 0,
+      health: 3, maxHealth: 3,
       canRevive: true, hasRevived: false, multiplier: 1,
       world: currentWorld, activePowerUps: [],
       activeWeapon: null, weaponAmmo: 0,
@@ -287,6 +290,10 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setBoss(null);
     setBossRewards(null);
     setBossArena(null);
+    setKillCam(null);
+    setEnvironmentalHazards([]);
+    setBossRage({ current: 0, max: 100, isEnraged: false });
+    setDefeatedBosses([]);
     bossSpawnedRef.current = new Set();
     arenaTriggeredRef.current = false;
     obstacleTimerRef.current = 0;
@@ -297,7 +304,15 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   }, [currentWorld]);
 
   const pauseGame = useCallback(() => {
-    setGameState(prev => ({ ...prev, isPaused: !prev.isPaused }));
+    setGameState(prev => {
+      const newPaused = !prev.isPaused;
+      if (newPaused) {
+        audioManager.stopBGM();
+      } else {
+        audioManager.startBGM();
+      }
+      return { ...prev, isPaused: newPaused };
+    });
   }, []);
 
   const goHome = useCallback(() => {
@@ -305,6 +320,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setGameState({
       isPlaying: false, isPaused: false, isGameOver: false,
       score: 0, distance: 0, speed: INITIAL_SPEED, coins: 0,
+      health: 3, maxHealth: 3,
       canRevive: true, hasRevived: false, multiplier: 1,
       world: currentWorld, activePowerUps: [],
       activeWeapon: null, weaponAmmo: 0,
@@ -325,13 +341,33 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
     setBoss(null);
     setBossRewards(null);
     setBossArena(null);
+    setKillCam(null);
+    setEnvironmentalHazards([]);
+    setBossRage({ current: 0, max: 100, isEnraged: false });
+    setDefeatedBosses([]);
     arenaTriggeredRef.current = false;
   }, [currentWorld]);
+
+  // Damage player (reduce health instead of instant death)
+  const damagePlayer = useCallback(() => {
+    setGameState(prev => {
+      const newHealth = prev.health - 1;
+      if (newHealth <= 0) {
+        audioManager.playDeath();
+        audioManager.stopBGM();
+        onPlayerDamage?.();
+        return { ...prev, health: 0, isGameOver: true, isPlaying: false };
+      }
+      return { ...prev, health: newHealth };
+    });
+    setParticles(current => [...current, ...createParticles(player.x + PLAYER_WIDTH / 2, player.y + PLAYER_HEIGHT / 2, ['#FF6B6B', '#FF0000'], 10)]);
+    onPlayerHit?.();
+  }, [player.x, player.y, createParticles, onPlayerDamage, onPlayerHit]);
 
   const endGame = useCallback(() => {
     audioManager.playDeath();
     audioManager.stopBGM();
-    setGameState(prev => ({ ...prev, isGameOver: true, isPlaying: false }));
+    setGameState(prev => ({ ...prev, health: 0, isGameOver: true, isPlaying: false }));
     setParticles(current => [...current, ...createParticles(player.x + PLAYER_WIDTH / 2, player.y + PLAYER_HEIGHT / 2, ['#FF6B6B', '#FFE66D', '#4ECDC4'], 20)]);
     onPlayerDamage?.();
   }, [player.x, player.y, createParticles, onPlayerDamage]);
@@ -339,7 +375,14 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
   const revive = useCallback(() => {
     if (!gameState.canRevive || gameState.hasRevived) return;
     audioManager.startBGM();
-    setGameState(prev => ({ ...prev, isPlaying: true, isGameOver: false, hasRevived: true, canRevive: false }));
+    setGameState(prev => ({ 
+      ...prev, 
+      isPlaying: true, 
+      isGameOver: false, 
+      hasRevived: true, 
+      canRevive: false,
+      health: prev.maxHealth, // Restore full health on revive
+    }));
     setPlayer(prev => ({ ...prev, y: GROUND_Y - PLAYER_HEIGHT, velocityY: 0, isJumping: false, isOnGround: true, hasDoubleJumped: false, doubleJumpAvailable: true }));
     setObstacles([]);
     setPlayerProjectiles([]);
@@ -851,8 +894,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
               newBoss.projectiles = newBoss.projectiles.filter(p => p.id !== projectile.id);
               onPlayerHit?.();
             } else {
-              endGame();
-              return newBoss;
+              damagePlayer();
+              newBoss.projectiles = newBoss.projectiles.filter(p => p.id !== projectile.id);
             }
           }
         }
@@ -902,7 +945,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
         // Player collision with boss body
         if (checkCollision(player, prevBoss) && player.y >= prevBoss.y) {
           if (!hasShield) {
-            endGame();
+            damagePlayer();
           }
         }
         
@@ -1113,8 +1156,8 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             setParticles(p => [...p, ...createParticles(player.x + PLAYER_WIDTH / 2, player.y + PLAYER_HEIGHT / 2, ['#00BFFF', '#87CEEB'], 10)]);
             return updated.filter(o => o.id !== obs.id);
           }
-          endGame();
-          break;
+          damagePlayer();
+          return updated.filter(o => o.id !== obs.id); // Remove the obstacle that hit player
         }
       }
       return updated;

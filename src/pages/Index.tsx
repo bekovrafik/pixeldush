@@ -605,6 +605,8 @@ export default function Index() {
           distance={gameState.distance}
           coinCount={gameState.coins}
           speed={gameState.speed}
+          health={gameState.health}
+          maxHealth={gameState.maxHealth}
           isPlaying={gameState.isPlaying}
           selectedSkin={selectedSkin}
           world={gameState.world}

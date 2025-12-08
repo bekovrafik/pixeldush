@@ -6,6 +6,8 @@ export interface GameState {
   distance: number;
   speed: number;
   coins: number;
+  health: number; // Player health (hearts)
+  maxHealth: number; // Max health
   canRevive: boolean;
   hasRevived: boolean;
   multiplier: number;
