@@ -25,6 +25,8 @@ import { WeaponHUD } from '@/components/game/WeaponHUD';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useScreenShake } from '@/hooks/useScreenShake';
+import { usePowerUpEffects } from '@/hooks/usePowerUpEffects';
+import { useBossIntro } from '@/hooks/useBossIntro';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useSkins } from '@/hooks/useSkins';
@@ -121,6 +123,12 @@ export default function Index() {
 
   // Screen shake hook
   const { shakeOffset, shakeOnDamage, shakeOnBossDefeat, shakeOnHit } = useScreenShake();
+  
+  // Power-up effects hook
+  const { screenFlash, explosions: powerUpExplosions, triggerPowerUpCollection, updateExplosions } = usePowerUpEffects();
+  
+  // Boss intro hook
+  const { introState: bossIntro, startBossIntro, updateBossIntro, getShakeOffset: getBossIntroShake } = useBossIntro();
 
   const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, justPickedUpWeapon, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { 
     isVip, 
@@ -135,6 +143,15 @@ export default function Index() {
     onPlayerHit: () => {
       shakeOnHit();
       hapticsManager.warningNotification();
+    },
+    onPowerUpCollect: (type, x, y) => {
+      triggerPowerUpCollection(x, y, type as any);
+    },
+    onWeaponCollect: (type, x, y) => {
+      triggerPowerUpCollection(x, y, 'weapon');
+    },
+    onBossSpawn: (bossType) => {
+      startBossIntro(bossType as any);
     },
   });
 
@@ -434,6 +451,10 @@ export default function Index() {
           hasDoubleJumped={player.hasDoubleJumped}
           isVip={isVip}
           onTap={handleTap}
+          screenFlash={screenFlash}
+          powerUpExplosions={powerUpExplosions}
+          bossIntro={bossIntro}
+          bossIntroShakeOffset={getBossIntroShake()}
         />
 
         <GameUI

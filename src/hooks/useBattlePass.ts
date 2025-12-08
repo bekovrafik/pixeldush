@@ -154,8 +154,8 @@ export function useBattlePass(profileId: string | null) {
       return { success: false };
     }
 
-    // Check if tier is unlocked
-    if (tierNumber > userProgress.current_tier) {
+    // Check if tier is unlocked - user's current_tier must be >= the tier number
+    if (userProgress.current_tier < tierNumber) {
       toast.error('Tier not unlocked yet!');
       return { success: false };
     }
@@ -170,6 +170,7 @@ export function useBattlePass(profileId: string | null) {
     const rewardValue = isPremium ? tier.premium_reward_value : tier.free_reward_value;
 
     if (rewardType === 'none' || !rewardValue) {
+      toast.error('No reward available for this tier!');
       return { success: false };
     }
 

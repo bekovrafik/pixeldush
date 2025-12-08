@@ -104,14 +104,19 @@ export function BattlePassModal({
   };
 
   const canClaimFree = (tier: BattlePassTier) => {
-    return tier.tier_number <= currentTier && 
+    // Fix: tier_number must be <= currentTier, AND currentTier must be >= tier_number
+    // If currentTier is 0, user hasn't reached any tier yet
+    return currentTier >= tier.tier_number && 
            tier.free_reward_type !== 'none' && 
+           tier.free_reward_value !== null &&
            !claimedFreeTiers.includes(tier.tier_number);
   };
 
   const canClaimPremium = (tier: BattlePassTier) => {
-    return tier.tier_number <= currentTier && 
+    return currentTier >= tier.tier_number && 
            isPremium && 
+           tier.premium_reward_type !== 'none' &&
+           tier.premium_reward_value !== null &&
            !claimedPremiumTiers.includes(tier.tier_number);
   };
 
