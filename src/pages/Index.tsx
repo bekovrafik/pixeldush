@@ -26,6 +26,7 @@ import { WeaponHUD } from '@/components/game/WeaponHUD';
 import { MobileHomeScreen } from '@/components/game/MobileHomeScreen';
 import { VipSubscriptionModal } from '@/components/game/VipSubscriptionModal';
 import { AccountManagementModal } from '@/components/game/AccountManagementModal';
+import { SplashScreen } from '@/components/game/SplashScreen';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useScreenShake } from '@/hooks/useScreenShake';
@@ -55,6 +56,10 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Index() {
+  const [showSplash, setShowSplash] = useState(() => {
+    const hasSeenSplash = sessionStorage.getItem('pixelRunnerSplashShown');
+    return !hasSeenSplash;
+  });
   const navigate = useNavigate();
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showShop, setShowShop] = useState(false);
@@ -402,6 +407,16 @@ export default function Index() {
   const gameModeClasses = isMobile && gameState.isPlaying && !isPortrait 
     ? 'game-landscape-mode' 
     : 'min-h-[100dvh] bg-background flex flex-col items-center justify-center p-2 sm:p-4 scanlines overflow-hidden';
+
+  const handleSplashComplete = useCallback(() => {
+    sessionStorage.setItem('pixelRunnerSplashShown', 'true');
+    setShowSplash(false);
+  }, []);
+
+  // Show splash screen on first load
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
 
   // Show MobileHomeScreen on mobile when not playing
   if (isMobile && !gameState.isPlaying && !gameState.isGameOver) {
