@@ -333,11 +333,32 @@ export default function Index() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState.isPlaying, gameState.isGameOver, jump, attack, startGame, pauseGame]);
 
+  // Double tap detection for mobile jump
+  const lastTapTimeRef = useCallback(() => {
+    const ref = { current: 0 };
+    return ref;
+  }, [])();
+  
   const handleTap = useCallback(() => {
+    // Block all interaction during tutorial
+    if (showTutorial) return;
+    
     audioManager.resumeContext();
-    if (!gameState.isPlaying && !gameState.isGameOver) startGame();
-    else if (gameState.isPlaying && !gameState.isPaused) jump();
-  }, [gameState.isPlaying, gameState.isGameOver, gameState.isPaused, jump, startGame]);
+    if (!gameState.isPlaying && !gameState.isGameOver) {
+      startGame();
+    } else if (gameState.isPlaying && !gameState.isPaused) {
+      const now = Date.now();
+      const timeSinceLastTap = now - lastTapTimeRef.current;
+      lastTapTimeRef.current = now;
+      
+      // Double tap = double jump (tap within 300ms)
+      if (timeSinceLastTap < 300) {
+        jump(); // Second jump for double jump
+      } else {
+        jump(); // First jump
+      }
+    }
+  }, [gameState.isPlaying, gameState.isGameOver, gameState.isPaused, jump, startGame, showTutorial]);
 
   const handleRevive = useCallback(async () => {
     // VIP users can revive without watching ads
@@ -611,11 +632,8 @@ export default function Index() {
       {/* Mobile Controls - Only show when playing on mobile */}
       {isMobile && gameState.isPlaying && !gameState.isPaused && !isPortrait && (
         <MobileControls
-          onJump={jump}
           onAttack={attack}
           showAttackButton={showAttackButton}
-          doubleJumpAvailable={player.doubleJumpAvailable}
-          hasDoubleJumped={player.hasDoubleJumped}
           activeWeapon={gameState.activeWeapon}
           weaponAmmo={gameState.weaponAmmo}
           justPickedUpWeapon={justPickedUpWeapon}
