@@ -185,15 +185,22 @@ export default function Index() {
   // Boss intro hook
   const { introState: bossIntro, startBossIntro, updateBossIntro, getShakeOffset: getBossIntroShake } = useBossIntro();
 
+  // Phase transition effect state
+  const [phaseTransition, setPhaseTransition] = useState<{ bossType: string; phase: number; timestamp: number } | null>(null);
+  
+  // Boss defeat effect state
+  const [bossDeathEffect, setBossDeathEffect] = useState<{ bossType: string; timestamp: number } | null>(null);
+
   const { gameState, player, obstacles, coins, powerUps, weaponPowerUps, particles, playerProjectiles, boss, bossRewards, bossWarning, bossArena, defeatedBosses, rushModeEnabled, endlessModeEnabled, justPickedUpWeapon, jump, attack, startGame, pauseGame, revive, goHome, toggleRushMode, toggleEndlessMode } = useGameEngine(selectedSkin, currentWorld, skinAbilities, { 
     isVip, 
     onPlayerDamage: () => {
       shakeOnDamage();
       hapticsManager.errorNotification();
     },
-    onBossDefeat: () => {
+    onBossDefeat: (bossType: string) => {
       shakeOnBossDefeat();
       hapticsManager.successNotification();
+      setBossDeathEffect({ bossType, timestamp: Date.now() });
     },
     onPlayerHit: () => {
       shakeOnHit();
@@ -211,6 +218,10 @@ export default function Index() {
     },
     onBossSpawn: (bossType) => {
       startBossIntro(bossType as any);
+    },
+    onPhaseTransition: (bossType: string, phase: number) => {
+      setPhaseTransition({ bossType, phase, timestamp: Date.now() });
+      hapticsManager.heavyImpact();
     },
   });
 
@@ -608,6 +619,8 @@ export default function Index() {
           powerUpExplosions={powerUpExplosions}
           bossIntro={bossIntro}
           bossIntroShakeOffset={getBossIntroShake()}
+          phaseTransition={phaseTransition}
+          bossDeathEffect={bossDeathEffect}
         />
 
         <GameUI

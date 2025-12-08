@@ -24,16 +24,17 @@ interface SkinAbilities {
 interface GameEngineOptions {
   isVip?: boolean;
   onPlayerDamage?: () => void;
-  onBossDefeat?: () => void;
+  onBossDefeat?: (bossType: string) => void;
   onPlayerHit?: () => void;
   onBossHit?: () => void;
   onPowerUpCollect?: (type: string, x: number, y: number) => void;
   onWeaponCollect?: (type: string, x: number, y: number) => void;
   onBossSpawn?: (bossType: string) => void;
+  onPhaseTransition?: (bossType: string, phase: number) => void;
 }
 
 export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }, options: GameEngineOptions = {}) {
-  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit, onBossHit, onPowerUpCollect, onWeaponCollect, onBossSpawn } = options;
+  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit, onBossHit, onPowerUpCollect, onWeaponCollect, onBossSpawn, onPhaseTransition } = options;
   const [justPickedUpWeapon, setJustPickedUpWeapon] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
@@ -648,13 +649,14 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
                 setDefeatedBosses(prev => [...prev, prevBoss.type]);
                 setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
                 audioManager.playBossDefeated();
-                onBossDefeat?.();
+                onBossDefeat?.(prevBoss.type);
                 
                 handleBossDefeat(prevBoss);
                 return null;
               }
               
               if (newHealth <= prevBoss.maxHealth / 2 && prevBoss.phase === 1) {
+                onPhaseTransition?.(prevBoss.type, 2);
                 return { ...prevBoss, health: newHealth, phase: 2 };
               }
               
@@ -860,13 +862,14 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             setDefeatedBosses(prev => [...prev, prevBoss.type]);
             setParticles(p => [...p, ...createParticles(prevBoss.x + prevBoss.width / 2, prevBoss.y + prevBoss.height / 2, ['#FFD700', '#FF4444', '#9933FF'], 30)]);
             audioManager.playBossDefeated();
-            onBossDefeat?.();
+            onBossDefeat?.(prevBoss.type);
             
             handleBossDefeat(prevBoss);
             return null;
           }
           
           if (newBoss.health <= prevBoss.maxHealth / 2 && prevBoss.phase === 1) {
+            onPhaseTransition?.(prevBoss.type, 2);
             newBoss.phase = 2;
           }
         }
