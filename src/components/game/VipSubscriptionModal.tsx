@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Crown, Check, Sparkles, Zap, Shield, Coins, Ban, Star, Loader2, Gift, Calendar } from 'lucide-react';
+import { Crown, Check, Sparkles, Zap, Shield, Coins, Ban, Star, Loader2, Gift, Calendar, ExternalLink } from 'lucide-react';
 import { SUBSCRIPTIONS, purchaseManager } from '@/lib/purchaseManager';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
 
 interface VipSubscriptionModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export function VipSubscriptionModal({
 
   const monthlyPlan = SUBSCRIPTIONS.find(s => s.period === 'monthly');
   const yearlyPlan = SUBSCRIPTIONS.find(s => s.period === 'yearly');
+  const isNative = Capacitor.isNativePlatform();
 
   const handlePurchase = async () => {
     if (!isLoggedIn) {
@@ -55,9 +57,16 @@ export function VipSubscriptionModal({
       const result = await purchaseManager.purchaseSubscription(subscription.productId);
       
       if (result.success) {
-        toast.success('🎉 Welcome to VIP! Enjoy your benefits!');
-        onPurchaseComplete?.();
-        onClose();
+        if (isNative) {
+          toast.success('🎉 Welcome to VIP! Enjoy your benefits!');
+          onPurchaseComplete?.();
+          onClose();
+        } else {
+          // For web, Stripe opens in new tab - show info toast
+          toast.info('Checkout opened in new tab. Complete your purchase there.', {
+            duration: 5000,
+          });
+        }
       } else if (result.error) {
         if (result.error !== 'Purchase cancelled') {
           toast.error(result.error);
@@ -204,8 +213,10 @@ export function VipSubscriptionModal({
               >
                 {purchasing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
+                ) : isNative ? (
                   <Crown className="w-4 h-4" />
+                ) : (
+                  <ExternalLink className="w-4 h-4" />
                 )}
                 {purchasing ? 'PROCESSING...' : `SUBSCRIBE ${selectedPlan.toUpperCase()}`}
               </Button>
@@ -221,7 +232,9 @@ export function VipSubscriptionModal({
             )}
 
             <p className="text-[9px] text-muted-foreground text-center">
-              Cancel anytime. Subscription auto-renews. Managed through Google Play / App Store.
+              {isNative 
+                ? 'Cancel anytime. Subscription auto-renews. Managed through Google Play / App Store.'
+                : 'Cancel anytime. Subscription auto-renews. Managed through Stripe.'}
             </p>
           </div>
         </ScrollArea>
