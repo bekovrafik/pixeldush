@@ -240,6 +240,75 @@ class AudioManager {
     oscillator.stop(ctx.currentTime + 0.05);
   }
 
+  // Hover sound - subtle blip
+  playHover() {
+    if (this.isSfxMuted) return;
+    
+    const ctx = this.getContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+    
+    gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.03);
+  }
+
+  // Purchase success - celebratory chime
+  playPurchase() {
+    if (this.isSfxMuted) return;
+    
+    const ctx = this.getContext();
+    const notes = [523, 659, 784, 1047, 1319]; // C5, E5, G5, C6, E6
+    
+    notes.forEach((freq, i) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.type = 'sine';
+      const startTime = ctx.currentTime + i * 0.08;
+      oscillator.frequency.setValueAtTime(freq, startTime);
+      
+      gainNode.gain.setValueAtTime(0.15, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+      
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.15);
+    });
+  }
+
+  // Select/equip sound - confirmation blip
+  playSelect() {
+    if (this.isSfxMuted) return;
+    
+    const ctx = this.getContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(440, ctx.currentTime);
+    oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.05);
+    
+    gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.1);
+  }
+
   startBGM() {
     if (this.isMusicMuted || this.bgmPlaying) return;
     
