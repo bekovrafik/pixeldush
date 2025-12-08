@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Swords, Users, BarChart3, Volume2, VolumeX } from 'lucide-react';
+import { Play, Trophy, ShoppingBag, Settings, Gift, Crown, Zap, Target, Star, Swords, Users, BarChart3, Volume2, VolumeX, DollarSign } from 'lucide-react';
 import { WORLD_CONFIGS, WorldTheme } from '@/types/game';
 import { hapticsManager } from '@/lib/hapticsManager';
 
@@ -27,6 +27,7 @@ interface MobileHomeScreenProps {
   onOpenFriends: () => void;
   onToggleMute: () => void;
   onOpenStats: () => void;
+  onOpenIAPShop: () => void;
 }
 
 type GameMode = 'normal' | 'rush' | 'endless';
@@ -60,6 +61,7 @@ export function MobileHomeScreen({
   onOpenFriends,
   onToggleMute,
   onOpenStats,
+  onOpenIAPShop,
 }: MobileHomeScreenProps) {
   const [selectedMode, setSelectedMode] = useState<GameMode>(
     rushModeEnabled ? 'rush' : endlessModeEnabled ? 'endless' : 'normal'
@@ -124,7 +126,7 @@ export function MobileHomeScreen({
         
         {/* Center: Coins */}
         <button 
-          onClick={() => handleButtonPress(onOpenShop)}
+          onClick={() => handleButtonPress(onOpenIAPShop)}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted/60 border border-border/40"
         >
           <span className="text-lg">🪙</span>
@@ -258,6 +260,7 @@ export function MobileHomeScreen({
         <div className="flex justify-around items-center max-w-md mx-auto">
           <NavItem icon={Trophy} label="Ranks" onClick={() => handleButtonPress(onOpenLeaderboard)} />
           <NavItem icon={ShoppingBag} label="Shop" onClick={() => handleButtonPress(onOpenShop)} />
+          <NavItem icon={DollarSign} label="Store" onClick={() => handleButtonPress(onOpenIAPShop)} />
           <NavItem icon={Users} label="Friends" onClick={() => handleButtonPress(onOpenFriends)} />
           <NavItem icon={BarChart3} label="Stats" onClick={() => handleButtonPress(onOpenStats)} />
         </div>
