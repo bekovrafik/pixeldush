@@ -701,40 +701,111 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           
           const projectileType = prevBoss.type === 'mech' ? 'laser' : prevBoss.type === 'dragon' ? 'fireball' : 'missile';
           
-          // Mix of projectile types - some aim at player, some at ground level
-          const projectileVariant = Math.random();
-          let targetY: number;
-          let velocityY: number = 0;
+          // Phase 2 has enhanced attack patterns
+          const isPhase2 = newBoss.phase >= 2;
+          const newProjectiles: BossProjectile[] = [];
           
-          if (projectileVariant < 0.4) {
-            // 40%: Aim at player's current position
-            targetY = player.y + PLAYER_HEIGHT / 2;
-            const dx = player.x - prevBoss.x;
-            const dy = targetY - (prevBoss.y + prevBoss.height / 2);
-            const speed = 10 + newBoss.phase * 2;
-            const angle = Math.atan2(dy, dx);
-            velocityY = Math.sin(angle) * speed * 0.5;
-          } else if (projectileVariant < 0.7) {
-            // 30%: Ground-level projectile (hits running players)
-            targetY = GROUND_Y - 25;
-            velocityY = 0;
+          if (isPhase2) {
+            // PHASE 2 ATTACK PATTERNS - More projectiles, different patterns
+            if (prevBoss.type === 'mech') {
+              // Mech Phase 2: Triple laser burst
+              const speeds = [-10, -12, -10];
+              const offsets = [-30, 0, 30];
+              for (let i = 0; i < 3; i++) {
+                newProjectiles.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  x: prevBoss.x,
+                  y: GROUND_Y - 40 + offsets[i],
+                  width: 35,
+                  height: 15,
+                  velocityX: speeds[i],
+                  velocityY: 0,
+                  type: 'laser',
+                });
+              }
+            } else if (prevBoss.type === 'dragon') {
+              // Dragon Phase 2: Fire wave pattern (5 fireballs in arc)
+              const arcAngles = [-0.4, -0.2, 0, 0.2, 0.4];
+              const baseSpeed = 11;
+              for (const angle of arcAngles) {
+                newProjectiles.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  x: prevBoss.x,
+                  y: prevBoss.y + prevBoss.height / 2,
+                  width: 28,
+                  height: 28,
+                  velocityX: Math.cos(Math.PI + angle) * baseSpeed,
+                  velocityY: Math.sin(angle) * baseSpeed * 0.6,
+                  type: 'fireball',
+                });
+              }
+            } else if (prevBoss.type === 'titan') {
+              // Titan Phase 2: Missile barrage + homing missile
+              // 3 regular missiles at different heights
+              const heights = [GROUND_Y - 30, GROUND_Y - 70, GROUND_Y - 110];
+              for (const h of heights) {
+                newProjectiles.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  x: prevBoss.x,
+                  y: h,
+                  width: 32,
+                  height: 18,
+                  velocityX: -13,
+                  velocityY: 0,
+                  type: 'missile',
+                });
+              }
+              // Plus a tracking missile aimed at player
+              const dy = player.y - (prevBoss.y + prevBoss.height / 2);
+              const trackingAngle = Math.atan2(dy, player.x - prevBoss.x);
+              newProjectiles.push({
+                id: Math.random().toString(36).substr(2, 9),
+                x: prevBoss.x,
+                y: prevBoss.y + prevBoss.height / 2,
+                width: 36,
+                height: 22,
+                velocityX: Math.cos(trackingAngle) * 10,
+                velocityY: Math.sin(trackingAngle) * 6,
+                type: 'missile',
+              });
+            }
           } else {
-            // 30%: Mid-level projectile
-            targetY = GROUND_Y - 60;
-            velocityY = 0;
+            // PHASE 1 - Original attack patterns
+            const projectileVariant = Math.random();
+            let targetY: number;
+            let velocityY: number = 0;
+            
+            if (projectileVariant < 0.4) {
+              // 40%: Aim at player's current position
+              targetY = player.y + PLAYER_HEIGHT / 2;
+              const dx = player.x - prevBoss.x;
+              const dy = targetY - (prevBoss.y + prevBoss.height / 2);
+              const speed = 10;
+              const angle = Math.atan2(dy, dx);
+              velocityY = Math.sin(angle) * speed * 0.5;
+            } else if (projectileVariant < 0.7) {
+              // 30%: Ground-level projectile
+              targetY = GROUND_Y - 25;
+              velocityY = 0;
+            } else {
+              // 30%: Mid-level projectile
+              targetY = GROUND_Y - 60;
+              velocityY = 0;
+            }
+            
+            newProjectiles.push({
+              id: Math.random().toString(36).substr(2, 9),
+              x: prevBoss.x,
+              y: targetY,
+              width: 30,
+              height: 20,
+              velocityX: -8,
+              velocityY: velocityY,
+              type: projectileType,
+            });
           }
           
-          const newProjectile: BossProjectile = {
-            id: Math.random().toString(36).substr(2, 9),
-            x: prevBoss.x,
-            y: targetY,
-            width: 30,
-            height: 20,
-            velocityX: -8 - newBoss.phase * 2,
-            velocityY: velocityY,
-            type: projectileType,
-          };
-          newBoss.projectiles = [...newBoss.projectiles, newProjectile];
+          newBoss.projectiles = [...newBoss.projectiles, ...newProjectiles];
           audioManager.playBossAttack();
         } else {
           newBoss.isAttacking = false;
