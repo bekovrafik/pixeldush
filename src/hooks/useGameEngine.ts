@@ -492,6 +492,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             isAttacking: false,
             projectiles: [],
           });
+          onBossSpawn?.(bossConfig.type);
           if (isVip && !bossArena.isRushMode && !bossArena.isEndlessMode) {
             activatePowerUp('shield');
           }
@@ -514,6 +515,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           isAttacking: false,
           projectiles: [],
         });
+        onBossSpawn?.(bossConfig.type);
         if (isVip && !bossArena.isRushMode && !bossArena.isEndlessMode) {
           activatePowerUp('shield');
         }
@@ -535,6 +537,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           isAttacking: false,
           projectiles: [],
         });
+        onBossSpawn?.(bossConfig.type);
       }
     }
     
@@ -571,6 +574,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
             isAttacking: false,
             projectiles: [],
           });
+          onBossSpawn?.(bossConfig.type);
         }
       }
     }
