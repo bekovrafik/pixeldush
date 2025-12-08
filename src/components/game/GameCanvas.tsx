@@ -1061,14 +1061,41 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     drawBackground(ctx);
     drawGround(ctx);
     obstacles.forEach(obs => drawObstacle(ctx, obs));
-    coins.forEach(coin => drawCoin(ctx, coin));
-    powerUps.forEach(pu => drawPowerUp(ctx, pu));
-    weaponPowerUps.forEach(wp => drawWeaponPowerUp(ctx, wp));
+    
+    // Draw collectibles BEHIND the player (filter out ones too close to player - they're being collected)
+    const playerCenterX = player.x + player.width / 2;
+    const playerCenterY = player.y + player.height / 2;
+    const collectDistanceThreshold = 30; // Items this close are being collected, don't draw
+    
+    coins.filter(coin => {
+      const dist = Math.hypot(coin.x + 10 - playerCenterX, coin.y + 10 - playerCenterY);
+      return dist > collectDistanceThreshold;
+    }).forEach(coin => drawCoin(ctx, coin));
+    
+    powerUps.filter(pu => {
+      const dist = Math.hypot(pu.x + 15 - playerCenterX, pu.y + 15 - playerCenterY);
+      return dist > collectDistanceThreshold;
+    }).forEach(pu => drawPowerUp(ctx, pu));
+    
+    weaponPowerUps.filter(wp => {
+      const dist = Math.hypot(wp.x + 15 - playerCenterX, wp.y + 15 - playerCenterY);
+      return dist > collectDistanceThreshold;
+    }).forEach(wp => drawWeaponPowerUp(ctx, wp));
+    
+    // Draw player projectiles behind player
     playerProjectiles.forEach(proj => drawPlayerProjectile(ctx, proj));
+    
+    // Draw double jump trail behind player
+    drawDoubleJumpTrail(ctx, player);
+    
+    // Draw player
+    drawPlayer(ctx, player);
+    
+    // Draw boss and particles AFTER player (in front)
     if (boss) drawBoss(ctx, boss);
     drawParticles(ctx, particles);
-    drawDoubleJumpTrail(ctx, player);
-    drawPlayer(ctx, player);
+    
+    // UI elements
     drawUI(ctx, score, coinCount, activePowerUps, isVip);
     drawComboIndicator(ctx, comboCount, player.y);
     if (bossArena?.isActive || (bossArena && (bossArena.bossesDefeated.length >= ARENA_BOSS_SEQUENCE.length || bossArena.isEndlessMode))) {

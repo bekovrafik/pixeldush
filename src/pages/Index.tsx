@@ -25,6 +25,7 @@ import { MobileControls } from '@/components/game/MobileControls';
 import { WeaponHUD } from '@/components/game/WeaponHUD';
 import { MobileHomeScreen } from '@/components/game/MobileHomeScreen';
 import { VipSubscriptionModal } from '@/components/game/VipSubscriptionModal';
+import { AccountManagementModal } from '@/components/game/AccountManagementModal';
 import { purchaseManager } from '@/lib/purchaseManager';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useScreenShake } from '@/hooks/useScreenShake';
@@ -75,6 +76,7 @@ export default function Index() {
   const [showVipSubscription, setShowVipSubscription] = useState(false);
   const [showBossRushLeaderboard, setShowBossRushLeaderboard] = useState(false);
   const [showBossRushChallenges, setShowBossRushChallenges] = useState(false);
+  const [showAccountManagement, setShowAccountManagement] = useState(false);
   const [powerupsCollectedThisRun, setPowerupsCollectedThisRun] = useState(0);
   const [isSfxMuted, setIsSfxMuted] = useState(() => audioManager.getSfxMuted());
   const [isMusicMuted, setIsMusicMuted] = useState(() => audioManager.getMusicMuted());
@@ -436,12 +438,13 @@ export default function Index() {
         <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} isLoggedIn={!!user} profile={profile} onSignUp={signUp} onSignIn={signIn} onSignOut={signOut} />
         <DailyRewardModal isOpen={showDailyReward} onClose={() => setShowDailyReward(false)} currentStreak={currentStreak} canClaim={canClaim} lastClaimDay={lastClaimDay} onClaim={handleClaimDailyReward} isLoggedIn={!!user} onOpenAuth={() => { setShowDailyReward(false); setShowAuth(true); }} />
         <FriendsModal isOpen={showFriends} onClose={() => setShowFriends(false)} friends={friends} pendingRequests={pendingRequests} loading={friendsLoading} isLoggedIn={!!user} onSendRequest={sendFriendRequest} onAccept={acceptFriendRequest} onReject={rejectFriendRequest} onRemove={removeFriend} onOpenAuth={() => { setShowFriends(false); setShowAuth(true); }} />
-        <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} isMuted={isSfxMuted} isMusicMuted={isMusicMuted} onToggleMute={handleToggleMute} onToggleMusic={handleToggleMusic} />
+        <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} isMuted={isSfxMuted} isMusicMuted={isMusicMuted} onToggleMute={handleToggleMute} onToggleMusic={handleToggleMusic} onOpenAccount={() => setShowAccountManagement(true)} />
         <DailyChallengesModal isOpen={showDailyChallenges} onClose={() => setShowDailyChallenges(false)} userProgress={challengeProgress} loading={challengesLoading} isLoggedIn={!!user} onClaimReward={claimChallengeReward} onOpenAuth={() => { setShowDailyChallenges(false); setShowAuth(true); }} onPurchaseComplete={refreshProfile} />
         <BattlePassModal isOpen={showBattlePass} onClose={() => setShowBattlePass(false)} season={season} tiers={tiers} userProgress={battlePassProgress} loading={battlePassLoading} isLoggedIn={!!user} timeRemaining={getSeasonTimeRemaining()} onClaimReward={claimBattlePassReward} onUpgradeToPremium={upgradeToPremium} onOpenAuth={() => { setShowBattlePass(false); setShowAuth(true); }} onPurchaseComplete={refreshProfile} />
         <BossCollectionModal isOpen={showBossCollection} onClose={() => setShowBossCollection(false)} defeatedBosses={bossDefeatsFromDb.map(d => ({ type: d.boss_type, defeatedAt: new Date(d.defeated_at).getTime(), killTime: d.kill_time_seconds || undefined }))} />
         <VipModal isOpen={showVip} onClose={() => setShowVip(false)} isVip={isVip} subscriptionEnd={subscriptionEnd} loading={vipLoading} checkoutLoading={checkoutLoading} isLoggedIn={!!user} canClaimDailyBonus={canClaimVipBonus} dailyBonusDay={vipBonusDay} dailyBonusCoins={vipBonusCoins} allDailyBonuses={allVipBonuses} onClaimDailyBonus={async () => { const result = await claimVipBonus(); if (!result.error) { toast.success(`VIP Bonus claimed! +${result.coins} coins! 🎁`); refreshProfile(); refreshVipBonus(); addBonusCoinsEarned(result.coins); } return result; }} vipStats={vipStats} currentTier={getCurrentTierInfo()} nextTier={getNextTierInfo()} monthsUntilNextTier={getMonthsUntilNextTier()} vipSkins={allSkins.filter(s => ['diamond', 'phoenix', 'shadow_king', 'frost_queen', 'thunder_lord', 'cosmic_guardian'].includes(s.id))} ownedSkinIds={ownedSkinIds} selectedSkin={selectedSkin} onSelectSkin={selectSkin} onStartCheckout={startCheckout} onOpenPortal={openCustomerPortal} onOpenAuth={() => { setShowVip(false); setShowAuth(true); }} />
         <VipSubscriptionModal isOpen={showVipSubscription} onClose={() => setShowVipSubscription(false)} isLoggedIn={!!user} onOpenAuth={() => { setShowVipSubscription(false); setShowAuth(true); }} onPurchaseComplete={() => { refreshVipStatus(); refreshProfile(); }} />
+        <AccountManagementModal isOpen={showAccountManagement} onClose={() => setShowAccountManagement(false)} profile={profile} onSignOut={signOut} onProfileUpdate={refreshProfile} />
       </>
     );
   }
@@ -627,6 +630,7 @@ export default function Index() {
         isMusicMuted={isMusicMuted}
         onToggleMute={handleToggleMute}
         onToggleMusic={handleToggleMusic}
+        onOpenAccount={() => setShowAccountManagement(true)}
       />
       <IAPShop
         isOpen={showIAPShop}
@@ -746,6 +750,13 @@ export default function Index() {
         }}
         isLoggedIn={!!user}
         onOpenAuth={() => { setShowBossRushChallenges(false); setShowAuth(true); }}
+      />
+      <AccountManagementModal
+        isOpen={showAccountManagement}
+        onClose={() => setShowAccountManagement(false)}
+        profile={profile}
+        onSignOut={signOut}
+        onProfileUpdate={refreshProfile}
       />
     </div>
   );
