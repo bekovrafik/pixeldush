@@ -88,7 +88,7 @@ export default function Index() {
   const { user, profile, signUp, signIn, signOut, refreshProfile } = useAuth();
   const { isVip, subscriptionEnd, loading: vipLoading, checkoutLoading, startCheckout, openCustomerPortal, refreshStatus: refreshVipStatus } = useVipSubscription(user?.id || null);
   const { entries, loading: leaderboardLoading, fetchLeaderboard, submitScore } = useLeaderboard();
-  const { allSkins, ownedSkinIds, selectedSkin, loading: skinsLoading, purchaseSkin, selectSkin, getSelectedSkinData } = useSkins(profile?.id || null, isVip);
+  const { allSkins, ownedSkinIds, selectedSkin, loading: skinsLoading, purchaseSkin, selectSkin, getSelectedSkinData, refetchSkins } = useSkins(profile?.id || null, isVip);
   const { achievements, unlockedIds, loading: achievementsLoading, checkAndUnlockAchievements } = useAchievements(profile?.id || null);
   const { currentStreak, canClaim, lastClaimDay, claimReward } = useDailyRewards(profile?.id || null);
   const { friends, pendingRequests, loading: friendsLoading, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend, refreshFriends } = useFriends(profile?.id || null);
@@ -456,7 +456,7 @@ export default function Index() {
         <BossRushChallengesModal isOpen={showBossRushChallenges} onClose={() => setShowBossRushChallenges(false)} challenges={rushChallenges} progress={rushChallengeProgress} loading={rushChallengesLoading} isLoggedIn={!!user} onClaimReward={claimRushChallengeReward} onOpenAuth={() => { setShowBossRushChallenges(false); setShowAuth(true); }} />
         <VipModal isOpen={showVip} onClose={() => setShowVip(false)} isVip={isVip} subscriptionEnd={subscriptionEnd} loading={vipLoading} checkoutLoading={checkoutLoading} isLoggedIn={!!user} canClaimDailyBonus={canClaimVipBonus} dailyBonusDay={vipBonusDay} dailyBonusCoins={vipBonusCoins} allDailyBonuses={allVipBonuses} onClaimDailyBonus={async () => { const result = await claimVipBonus(); if (!result.error) { toast.success(`VIP Bonus claimed! +${result.coins} coins! 🎁`); refreshProfile(); refreshVipBonus(); addBonusCoinsEarned(result.coins); } return result; }} vipStats={vipStats} currentTier={getCurrentTierInfo()} nextTier={getNextTierInfo()} monthsUntilNextTier={getMonthsUntilNextTier()} vipSkins={allSkins.filter(s => ['diamond', 'phoenix', 'shadow_king', 'frost_queen', 'thunder_lord', 'cosmic_guardian'].includes(s.id))} ownedSkinIds={ownedSkinIds} selectedSkin={selectedSkin} onSelectSkin={selectSkin} onStartCheckout={startCheckout} onOpenPortal={openCustomerPortal} onOpenAuth={() => { setShowVip(false); setShowAuth(true); }} onPurchaseComplete={() => { refreshVipStatus(); refreshProfile(); }} />
         <VipSubscriptionModal isOpen={showVipSubscription} onClose={() => setShowVipSubscription(false)} isLoggedIn={!!user} onOpenAuth={() => { setShowVipSubscription(false); setShowAuth(true); }} onPurchaseComplete={() => { refreshVipStatus(); refreshProfile(); }} />
-        <IAPShop isOpen={showIAPShop} onClose={() => setShowIAPShop(false)} isLoggedIn={!!user} profileId={profile?.id || null} currentCoins={profile?.coins || 0} onPurchaseComplete={refreshProfile} onOpenAuth={() => { setShowIAPShop(false); setShowAuth(true); }} />
+        <IAPShop isOpen={showIAPShop} onClose={() => setShowIAPShop(false)} isLoggedIn={!!user} profileId={profile?.id || null} currentCoins={profile?.coins || 0} onPurchaseComplete={() => { refreshProfile(); refetchSkins(); }} onOpenAuth={() => { setShowIAPShop(false); setShowAuth(true); }} ownedSkinIds={ownedSkinIds} />
         <CoinStoreModal isOpen={showCoinStore} onClose={() => setShowCoinStore(false)} isLoggedIn={!!user} profileId={profile?.id || null} currentCoins={profile?.coins || 0} onCoinsEarned={refreshProfile} onOpenAuth={() => { setShowCoinStore(false); setShowAuth(true); }} />
         <AccountManagementModal isOpen={showAccountManagement} onClose={() => setShowAccountManagement(false)} profile={profile} onSignOut={signOut} onProfileUpdate={refreshProfile} />
       </>
@@ -652,8 +652,9 @@ export default function Index() {
         isLoggedIn={!!user}
         profileId={profile?.id || null}
         currentCoins={profile?.coins || 0}
-        onPurchaseComplete={refreshProfile}
+        onPurchaseComplete={() => { refreshProfile(); refetchSkins(); }}
         onOpenAuth={() => { setShowIAPShop(false); setShowAuth(true); }}
+        ownedSkinIds={ownedSkinIds}
       />
       <CoinStoreModal
         isOpen={showCoinStore}
