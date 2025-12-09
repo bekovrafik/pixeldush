@@ -906,10 +906,10 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.save();
 
     const healthPercent = b.health / b.maxHealth;
-    const barWidth = 320;
-    const barHeight = 20;
+    const barWidth = 280;
+    const barHeight = 16;
     const barX = (CANVAS_WIDTH - barWidth) / 2;
-    const barY = 10; // Top of screen, centered - moved up significantly
+    const barY = 8; // Top center
 
     // Detect if boss was just hit
     if (prevBossHealthRef.current !== null && b.health < prevBossHealthRef.current) {
@@ -922,39 +922,39 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     const isRecentHit = hitElapsed < 300;
 
     // Background with damage shake effect
-    const shakeX = isRecentHit ? (Math.random() - 0.5) * 4 : 0;
+    const shakeX = isRecentHit ? (Math.random() - 0.5) * 3 : 0;
     const shakeY = isRecentHit ? (Math.random() - 0.5) * 2 : 0;
 
     // Outer glow based on boss health
     ctx.shadowColor = healthPercent > 0.5 ? '#00FF00' : healthPercent > 0.25 ? '#FFFF00' : '#FF0000';
-    ctx.shadowBlur = isRecentHit ? 20 : 10;
+    ctx.shadowBlur = isRecentHit ? 15 : 8;
 
-    // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    // Background - compact
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.beginPath();
-    ctx.roundRect(barX - 8 + shakeX, barY - 5 + shakeY, barWidth + 16, barHeight + 35, 6);
+    ctx.roundRect(barX - 5 + shakeX, barY - 3 + shakeY, barWidth + 10, barHeight + 22, 4);
     ctx.fill();
 
     // Border with color based on phase
     ctx.strokeStyle = b.phase === 2 ? '#FF4444' : '#FFD700';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(barX - 8 + shakeX, barY - 5 + shakeY, barWidth + 16, barHeight + 35, 6);
+    ctx.roundRect(barX - 5 + shakeX, barY - 3 + shakeY, barWidth + 10, barHeight + 22, 4);
     ctx.stroke();
 
     ctx.shadowBlur = 0;
 
-    // Boss name with icon
+    // Boss name with icon - smaller
     const bossIcon = b.type === 'mech' ? '🤖' : b.type === 'dragon' ? '🐉' : '👑';
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.font = '6px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`${bossIcon} ${bossConfig.name}`, CANVAS_WIDTH / 2 + shakeX, barY + 8 + shakeY);
+    ctx.fillText(`${bossIcon} ${bossConfig.name}`, CANVAS_WIDTH / 2 + shakeX, barY + 6 + shakeY);
 
-    // Health bar background
+    // Health bar background - more compact
     ctx.fillStyle = 'rgba(60, 0, 0, 0.9)';
     ctx.beginPath();
-    ctx.roundRect(barX + shakeX, barY + 12 + shakeY, barWidth, barHeight, 4);
+    ctx.roundRect(barX + shakeX, barY + 9 + shakeY, barWidth, barHeight, 3);
     ctx.fill();
 
     // Health bar fill with gradient
@@ -973,48 +973,15 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.roundRect(barX + shakeX, barY + 12 + shakeY, barWidth * healthPercent, barHeight, 4);
+      ctx.roundRect(barX + shakeX, barY + 9 + shakeY, barWidth * healthPercent, barHeight, 3);
       ctx.fill();
-
-      // Animated shine on health bar
-      const shinePos = ((Date.now() / 15) % (barWidth + 50)) - 25;
-      if (shinePos < barWidth * healthPercent) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(barX + shakeX, barY + 12 + shakeY, barWidth * healthPercent, barHeight);
-        ctx.clip();
-        const shineGradient = ctx.createLinearGradient(shinePos - 15, 0, shinePos + 35, 0);
-        shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
-        shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = shineGradient;
-        ctx.fillRect(shinePos + shakeX, barY + 12 + shakeY, 50, barHeight);
-        ctx.restore();
-      }
     }
 
     // Health percentage text
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = '6px "Press Start 2P", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${Math.ceil(healthPercent * 100)}%`, CANVAS_WIDTH / 2 + shakeX, barY + 25 + shakeY);
-
-    // Phase indicator (left) and attack status (right) - below health bar
     ctx.font = '5px "Press Start 2P", monospace';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = b.phase === 2 ? '#FF4444' : '#AAAAAA';
-    ctx.fillText(`PHASE ${b.phase}`, barX + shakeX, barY + 42 + shakeY);
-
-    ctx.textAlign = 'right';
-    if (b.isAttacking) {
-      ctx.fillStyle = '#FF0000';
-      const flashAlpha = Math.abs(Math.sin(Date.now() / 50));
-      ctx.globalAlpha = 0.5 + flashAlpha * 0.5;
-      ctx.fillText('ATTACKING!', barX + barWidth + shakeX, barY + 42 + shakeY);
-    } else {
-      ctx.fillStyle = '#888888';
-      ctx.fillText('READY', barX + barWidth + shakeX, barY + 42 + shakeY);
-    }
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.ceil(healthPercent * 100)}%`, CANVAS_WIDTH / 2 + shakeX, barY + 20 + shakeY);
 
     ctx.restore();
   }, []);
@@ -1521,208 +1488,180 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
   }, []);
 
   const drawUI = useCallback((ctx: CanvasRenderingContext2D, currentScore: number, coins: number, currentHealth: number, currentMaxHealth: number, powerUps: ActivePowerUp[], showVipBadge: boolean, currentWeapon: WeaponType | null = null, currentAmmo: number = 0, isBossFight: boolean = false) => {
-    // During boss fight, only show minimal UI (coins and health on left, score on right)
-    // Boss health bar is drawn separately in center
-
-    // Score display (top right - always visible)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(CANVAS_WIDTH - 100, 8, 90, 35);
-    ctx.fillStyle = '#4ECDC4';
-    ctx.font = '12px "Press Start 2P", monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(`${currentScore}`, CANVAS_WIDTH - 15, 32);
-    ctx.font = '6px "Press Start 2P", monospace';
-    ctx.fillStyle = '#888';
-    ctx.fillText('SCORE', CANVAS_WIDTH - 15, 20);
-
-    // Coins display (top left - always visible)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(8, 8, 70, 28);
-    ctx.fillStyle = '#ffd700';
-    ctx.font = '12px "Press Start 2P", monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${coins}`, 35, 28);
+    // Left side UI: Coins + Hearts stacked vertically
+    // Coins display (top left)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.beginPath();
-    ctx.arc(22, 22, 7, 0, Math.PI * 2);
+    ctx.roundRect(6, 6, 60, 22, 4);
+    ctx.fill();
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${coins}`, 28, 21);
+    ctx.beginPath();
+    ctx.arc(17, 17, 6, 0, Math.PI * 2);
     ctx.fill();
 
-    // Health Hearts (below coins)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(8, 40, 75, 22);
+    // Health Hearts (below coins, left side)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.beginPath();
+    ctx.roundRect(6, 32, 60, 20, 4);
+    ctx.fill();
+    
     for (let i = 0; i < currentMaxHealth; i++) {
-      const heartX = 18 + i * 22;
-      const heartY = 51;
+      const heartX = 16 + i * 18;
+      const heartY = 42;
       const isFilled = i < currentHealth;
 
       ctx.save();
       if (isFilled) {
         ctx.shadowColor = '#FF0000';
-        ctx.shadowBlur = 4;
+        ctx.shadowBlur = 3;
         ctx.fillStyle = '#FF4444';
       } else {
         ctx.fillStyle = '#444444';
       }
 
-      // Heart path
+      // Smaller heart
       ctx.beginPath();
-      ctx.moveTo(heartX, heartY - 3);
-      ctx.bezierCurveTo(heartX - 7, heartY - 9, heartX - 10, heartY, heartX, heartY + 7);
-      ctx.bezierCurveTo(heartX + 10, heartY, heartX + 7, heartY - 9, heartX, heartY - 3);
+      ctx.moveTo(heartX, heartY - 2);
+      ctx.bezierCurveTo(heartX - 5, heartY - 7, heartX - 8, heartY, heartX, heartY + 5);
+      ctx.bezierCurveTo(heartX + 8, heartY, heartX + 5, heartY - 7, heartX, heartY - 2);
       ctx.fill();
       ctx.restore();
-
-      // Pulse effect for last heart when low health
-      if (currentHealth === 1 && isFilled) {
-        const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
-        ctx.globalAlpha = pulse;
-        ctx.fillStyle = '#FF0000';
-        ctx.beginPath();
-        ctx.moveTo(heartX, heartY - 3);
-        ctx.bezierCurveTo(heartX - 7, heartY - 9, heartX - 10, heartY, heartX, heartY + 7);
-        ctx.bezierCurveTo(heartX + 10, heartY, heartX + 7, heartY - 9, heartX, heartY - 3);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
     }
 
-    // VIP Badge (top right, next to score)
+    // Right side UI: Score
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.beginPath();
+    ctx.roundRect(CANVAS_WIDTH - 85, 6, 78, 22, 4);
+    ctx.fill();
+    ctx.fillStyle = '#4ECDC4';
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${currentScore}`, CANVAS_WIDTH - 12, 21);
+
+    // VIP Badge (below score on right)
     if (showVipBadge) {
-      const vipX = CANVAS_WIDTH - 100;
-      const vipY = 48;
+      const vipX = CANVAS_WIDTH - 50;
+      const vipY = 32;
 
       ctx.save();
       ctx.shadowColor = '#FFD700';
-      ctx.shadowBlur = 6;
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
-      ctx.fillRect(vipX, vipY, 45, 18);
+      ctx.shadowBlur = 4;
+      const gradient = ctx.createLinearGradient(vipX, vipY, vipX + 42, vipY + 16);
+      gradient.addColorStop(0, '#FFD700');
+      gradient.addColorStop(1, '#FFA500');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(vipX, vipY, 42, 16, 3);
+      ctx.fill();
       ctx.restore();
 
-      const gradient = ctx.createLinearGradient(vipX, vipY, vipX + 45, vipY + 18);
-      gradient.addColorStop(0, '#FFD700');
-      gradient.addColorStop(0.5, '#FFA500');
-      gradient.addColorStop(1, '#FFD700');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(vipX, vipY, 45, 18);
-
       ctx.fillStyle = '#1a1a1a';
-      ctx.font = '7px "Press Start 2P", monospace';
+      ctx.font = '6px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('VIP', vipX + 22, vipY + 13);
+      ctx.fillText('VIP', vipX + 21, vipY + 11);
     }
 
-    // Power-up indicators (bottom left, compact)
+    // Bottom left: Active power-ups
     if (powerUps.length > 0) {
-      const startY = CANVAS_HEIGHT - 40;
+      const startY = CANVAS_HEIGHT - 35;
       powerUps.forEach((pu, i) => {
-        const x = 8 + i * 30;
+        const x = 6 + i * 28;
         const remainingPercent = pu.remainingTime / 300;
 
-        // Background box
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
         ctx.beginPath();
-        ctx.roundRect(x, startY, 26, 26, 3);
+        ctx.roundRect(x, startY, 24, 24, 3);
         ctx.fill();
 
-        // Fill based on remaining time
-        ctx.fillStyle = pu.type === 'shield' ? 'rgba(0, 191, 255, 0.6)' : pu.type === 'magnet' ? 'rgba(255, 0, 255, 0.6)' : 'rgba(255, 215, 0, 0.6)';
+        ctx.fillStyle = pu.type === 'shield' ? 'rgba(0, 191, 255, 0.5)' : pu.type === 'magnet' ? 'rgba(255, 0, 255, 0.5)' : 'rgba(255, 215, 0, 0.5)';
         ctx.beginPath();
-        ctx.roundRect(x, startY + 26 * (1 - remainingPercent), 26, 26 * remainingPercent, 3);
+        ctx.roundRect(x, startY + 24 * (1 - remainingPercent), 24, 24 * remainingPercent, 3);
         ctx.fill();
 
-        // Border
         ctx.strokeStyle = pu.type === 'shield' ? '#00BFFF' : pu.type === 'magnet' ? '#FF00FF' : '#FFD700';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.roundRect(x, startY, 26, 26, 3);
+        ctx.roundRect(x, startY, 24, 24, 3);
         ctx.stroke();
 
-        // Icon
-        ctx.font = '12px Arial';
+        ctx.font = '11px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', x + 13, startY + 18);
+        ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', x + 12, startY + 16);
       });
     }
 
-    // Weapon/Ammo display (bottom right)
+    // Bottom right: Weapon/Ammo
     if (currentWeapon && currentAmmo > 0) {
       const weaponConfig = WEAPON_CONFIGS[currentWeapon];
-      const weaponX = CANVAS_WIDTH - 75;
-      const weaponY = CANVAS_HEIGHT - 40;
+      const weaponX = CANVAS_WIDTH - 60;
+      const weaponY = CANVAS_HEIGHT - 35;
 
-      // Background
       ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
       ctx.beginPath();
-      ctx.roundRect(weaponX, weaponY, 65, 28, 4);
+      ctx.roundRect(weaponX, weaponY, 52, 24, 3);
       ctx.fill();
 
-      // Border with weapon color
       ctx.strokeStyle = weaponConfig.color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(weaponX, weaponY, 65, 28, 4);
+      ctx.roundRect(weaponX, weaponY, 52, 24, 3);
       ctx.stroke();
 
-      // Glow effect
-      ctx.shadowColor = weaponConfig.color;
-      ctx.shadowBlur = 6;
-
-      // Weapon icon
-      ctx.font = '14px Arial';
+      ctx.font = '12px Arial';
       ctx.textAlign = 'left';
-      ctx.fillText(weaponConfig.emoji, weaponX + 5, weaponY + 19);
+      ctx.fillText(weaponConfig.emoji, weaponX + 4, weaponY + 16);
 
-      // Ammo count
-      ctx.shadowBlur = 0;
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = '9px "Press Start 2P", monospace';
+      ctx.font = '8px "Press Start 2P", monospace';
       ctx.textAlign = 'right';
-      ctx.fillText(`x${currentAmmo}`, weaponX + 58, weaponY + 19);
+      ctx.fillText(`x${currentAmmo}`, weaponX + 47, weaponY + 16);
     }
   }, []);
 
   const drawBossProgressBar = useCallback((ctx: CanvasRenderingContext2D, currentDistance: number) => {
-    const BOSS_TRIGGER_DISTANCE = 5000; // ARENA_TRIGGER_DISTANCE (updated)
+    const BOSS_TRIGGER_DISTANCE = 5000;
     const progress = Math.min(currentDistance / BOSS_TRIGGER_DISTANCE, 1);
 
-    // Don't show if already at boss or past threshold
     if (progress >= 1) return;
 
     ctx.save();
 
-    // Bar dimensions and position (centered horizontally, below UI elements)
-    const barWidth = 220;
-    const barHeight = 12;
+    // Compact bar at top center - not overlapping with left/right UI
+    const barWidth = 180;
+    const barHeight = 10;
     const barX = (CANVAS_WIDTH - barWidth) / 2;
-    const barY = 75;
+    const barY = 8;
 
-    // Background with dark overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
     ctx.beginPath();
-    ctx.roundRect(barX - 5, barY - 5, barWidth + 10, barHeight + 28, 8);
+    ctx.roundRect(barX - 4, barY - 3, barWidth + 8, barHeight + 18, 4);
     ctx.fill();
 
-    // Border glow that intensifies as player gets closer
-    const glowIntensity = 0.3 + progress * 0.7;
-    const pulseEffect = Math.sin(Date.now() / 200) * 0.1 * progress;
-    ctx.strokeStyle = `rgba(255, ${Math.floor(100 - progress * 100)}, 0, ${glowIntensity + pulseEffect})`;
-    ctx.lineWidth = 2;
+    // Border
+    const glowIntensity = 0.4 + progress * 0.6;
+    ctx.strokeStyle = `rgba(255, ${Math.floor(100 - progress * 100)}, 0, ${glowIntensity})`;
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(barX - 5, barY - 5, barWidth + 10, barHeight + 28, 8);
+    ctx.roundRect(barX - 4, barY - 3, barWidth + 8, barHeight + 18, 4);
     ctx.stroke();
 
-    // Title text
-    ctx.fillStyle = '#AAAAAA';
-    ctx.font = '6px "Press Start 2P", monospace';
+    // Title
+    ctx.fillStyle = '#AAA';
+    ctx.font = '5px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('⚔️ BOSS ARENA', CANVAS_WIDTH / 2, barY + 5);
+    ctx.fillText('BOSS', CANVAS_WIDTH / 2, barY + 5);
 
     // Progress bar background
     ctx.fillStyle = 'rgba(80, 20, 20, 0.8)';
     ctx.beginPath();
-    ctx.roundRect(barX, barY + 10, barWidth, barHeight, 4);
+    ctx.roundRect(barX, barY + 8, barWidth, barHeight, 3);
     ctx.fill();
 
-    // Progress bar fill with gradient
+    // Progress fill
     if (progress > 0) {
       const gradient = ctx.createLinearGradient(barX, 0, barX + barWidth * progress, 0);
       gradient.addColorStop(0, '#8B0000');
@@ -1730,57 +1669,15 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       gradient.addColorStop(1, '#FFD700');
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.roundRect(barX, barY + 10, barWidth * progress, barHeight, 4);
+      ctx.roundRect(barX, barY + 8, barWidth * progress, barHeight, 3);
       ctx.fill();
-
-      // Animated shine effect on the bar
-      const shinePos = ((Date.now() / 20) % (barWidth + 40)) - 20;
-      if (shinePos < barWidth * progress) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(barX, barY + 10, barWidth * progress, barHeight);
-        ctx.clip();
-        const shineGradient = ctx.createLinearGradient(shinePos - 10, 0, shinePos + 30, 0);
-        shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
-        shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        ctx.fillStyle = shineGradient;
-        ctx.fillRect(shinePos, barY + 10, 40, barHeight);
-        ctx.restore();
-      }
     }
 
-    // Progress text
-    const remaining = BOSS_TRIGGER_DISTANCE - currentDistance;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '7px "Press Start 2P", monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${Math.floor(currentDistance)}m`, barX + 5, barY + 21);
-
-    ctx.textAlign = 'right';
-    ctx.fillStyle = progress > 0.8 ? '#FFD700' : '#888888';
-    ctx.fillText(`${BOSS_TRIGGER_DISTANCE}m`, barX + barWidth - 5, barY + 21);
-
-    // Boss icon at the end
-    ctx.font = '12px Arial';
+    // Distance text
+    ctx.fillStyle = '#FFF';
+    ctx.font = '5px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
-    const bossIconX = barX + barWidth + 15;
-    const iconPulse = progress > 0.8 ? 1 + Math.sin(Date.now() / 100) * 0.15 : 1;
-    ctx.save();
-    ctx.translate(bossIconX, barY + 18);
-    ctx.scale(iconPulse, iconPulse);
-    ctx.fillText('👹', 0, 0);
-    ctx.restore();
-
-    // "CYBER MECH" text if close
-    if (progress > 0.7) {
-      const textAlpha = (progress - 0.7) / 0.3;
-      ctx.globalAlpha = textAlpha;
-      ctx.fillStyle = '#FF4444';
-      ctx.font = '5px "Press Start 2P", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('CYBER MECH INCOMING!', CANVAS_WIDTH / 2, barY + 38);
-    }
+    ctx.fillText(`${Math.floor(currentDistance)}m / ${BOSS_TRIGGER_DISTANCE}m`, CANVAS_WIDTH / 2, barY + 16);
 
     ctx.restore();
   }, []);
@@ -1826,43 +1723,44 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
-  const drawBossArenaUI = useCallback((ctx: CanvasRenderingContext2D, arena: BossArenaState) => {
+  const drawBossArenaUI = useCallback((ctx: CanvasRenderingContext2D, arena: BossArenaState, hasBoss: boolean) => {
     ctx.save();
 
-    // Arena mode banner - positioned below boss health bar area (Y=55+)
+    // Arena mode banner - positioned at top center, below boss health if boss active
     const isRush = arena.isRushMode;
     const isEndless = arena.isEndlessMode;
-    const bannerY = 55; // Below boss health bar
+    const bannerY = hasBoss ? 32 : 8; // If boss active, below health bar; otherwise at top
+    const bannerHeight = 16;
 
-    const gradient = ctx.createLinearGradient(100, 0, CANVAS_WIDTH - 100, 0);
+    const gradient = ctx.createLinearGradient(150, 0, CANVAS_WIDTH - 150, 0);
     if (isEndless) {
-      gradient.addColorStop(0, 'rgba(128, 0, 255, 0.9)');
-      gradient.addColorStop(0.5, 'rgba(255, 0, 128, 1)');
-      gradient.addColorStop(1, 'rgba(128, 0, 255, 0.9)');
+      gradient.addColorStop(0, 'rgba(128, 0, 255, 0.85)');
+      gradient.addColorStop(0.5, 'rgba(255, 0, 128, 0.95)');
+      gradient.addColorStop(1, 'rgba(128, 0, 255, 0.85)');
     } else if (isRush) {
-      gradient.addColorStop(0, 'rgba(255, 0, 0, 0.9)');
-      gradient.addColorStop(0.5, 'rgba(255, 165, 0, 1)');
-      gradient.addColorStop(1, 'rgba(255, 0, 0, 0.9)');
+      gradient.addColorStop(0, 'rgba(255, 0, 0, 0.85)');
+      gradient.addColorStop(0.5, 'rgba(255, 165, 0, 0.95)');
+      gradient.addColorStop(1, 'rgba(255, 0, 0, 0.85)');
     } else {
-      gradient.addColorStop(0, 'rgba(139, 0, 0, 0.8)');
-      gradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.9)');
-      gradient.addColorStop(1, 'rgba(139, 0, 0, 0.8)');
+      gradient.addColorStop(0, 'rgba(139, 0, 0, 0.75)');
+      gradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.85)');
+      gradient.addColorStop(1, 'rgba(139, 0, 0, 0.75)');
     }
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.roundRect(100, bannerY, CANVAS_WIDTH - 200, 20, 4);
+    ctx.roundRect(150, bannerY, CANVAS_WIDTH - 300, bannerHeight, 3);
     ctx.fill();
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.font = '6px "Press Start 2P", monospace';
     ctx.textAlign = 'center';
 
     if (isEndless) {
-      ctx.fillText('♾️ ENDLESS MODE ♾️', CANVAS_WIDTH / 2, bannerY + 14);
+      ctx.fillText('♾️ ENDLESS ♾️', CANVAS_WIDTH / 2, bannerY + 11);
     } else if (isRush) {
-      ctx.fillText('⚡ BOSS RUSH ⚡', CANVAS_WIDTH / 2, bannerY + 14);
+      ctx.fillText('⚡ RUSH ⚡', CANVAS_WIDTH / 2, bannerY + 11);
     } else {
-      ctx.fillText('⚔️ BOSS ARENA ⚔️', CANVAS_WIDTH / 2, bannerY + 14);
+      ctx.fillText('⚔️ ARENA ⚔️', CANVAS_WIDTH / 2, bannerY + 11);
     }
 
     // Endless mode HUD - Wave counter and timer (positioned at bottom of screen)
@@ -2116,27 +2014,14 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
     obstacles.forEach(obs => drawObstacle(ctx, obs));
 
-    // Draw collectibles BEHIND the player (far from player only)
-    const playerCenterX = player.x + player.width / 2;
-    const playerCenterY = player.y + player.height / 2;
-    const collectDistanceThreshold = 60; // Items this close are being collected, don't draw
+    // Draw coins - all coins in the array are valid to draw (collected ones are already removed)
+    coins.forEach(coin => drawCoin(ctx, coin));
 
-    coins.filter(coin => {
-      const dist = Math.hypot(coin.x + 10 - playerCenterX, coin.y + 10 - playerCenterY);
-      return dist > collectDistanceThreshold;
-    }).forEach(coin => drawCoin(ctx, coin));
+    // Draw power-ups - all in array are valid (collected ones removed by game engine)
+    powerUps.forEach(pu => drawPowerUp(ctx, pu));
 
-    // Only draw power-ups that are far from player (not being collected)
-    powerUps.filter(pu => {
-      const dist = Math.hypot(pu.x + 15 - playerCenterX, pu.y + 15 - playerCenterY);
-      return dist > collectDistanceThreshold;
-    }).forEach(pu => drawPowerUp(ctx, pu));
-
-    // Only draw weapon power-ups that are far from player (not being collected)
-    weaponPowerUps.filter(wp => {
-      const dist = Math.hypot(wp.x + 15 - playerCenterX, wp.y + 15 - playerCenterY);
-      return dist > collectDistanceThreshold;
-    }).forEach(wp => drawWeaponPowerUp(ctx, wp));
+    // Draw weapon power-ups - all in array are valid (collected ones removed by game engine)
+    weaponPowerUps.forEach(wp => drawWeaponPowerUp(ctx, wp));
 
     // Draw player projectiles behind player
     playerProjectiles.forEach(proj => drawPlayerProjectile(ctx, proj));
@@ -2212,7 +2097,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
     // Only show boss arena UI when actually in arena (not when progress bar is showing)
     if (isInBossArena && bossArena) {
-      drawBossArenaUI(ctx, bossArena);
+      drawBossArenaUI(ctx, bossArena, hasBossActive);
     }
     if (bossWarning) drawBossWarning(ctx, bossWarning);
 
