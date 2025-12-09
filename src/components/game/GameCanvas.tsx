@@ -2120,21 +2120,23 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
     obstacles.forEach(obs => drawObstacle(ctx, obs));
 
-    // Draw collectibles BEHIND the player (filter out ones too close to player - they're being collected)
+    // Draw collectibles BEHIND the player (far from player only)
     const playerCenterX = player.x + player.width / 2;
     const playerCenterY = player.y + player.height / 2;
-    const collectDistanceThreshold = 30; // Items this close are being collected, don't draw
+    const collectDistanceThreshold = 60; // Items this close are being collected, don't draw
 
     coins.filter(coin => {
       const dist = Math.hypot(coin.x + 10 - playerCenterX, coin.y + 10 - playerCenterY);
       return dist > collectDistanceThreshold;
     }).forEach(coin => drawCoin(ctx, coin));
 
+    // Only draw power-ups that are far from player (not being collected)
     powerUps.filter(pu => {
       const dist = Math.hypot(pu.x + 15 - playerCenterX, pu.y + 15 - playerCenterY);
       return dist > collectDistanceThreshold;
     }).forEach(pu => drawPowerUp(ctx, pu));
 
+    // Only draw weapon power-ups that are far from player (not being collected)
     weaponPowerUps.filter(wp => {
       const dist = Math.hypot(wp.x + 15 - playerCenterX, wp.y + 15 - playerCenterY);
       return dist > collectDistanceThreshold;
