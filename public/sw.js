@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pixel-runner-v15';
+const CACHE_NAME = 'pixel-runner-v16';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
