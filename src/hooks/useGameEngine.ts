@@ -27,6 +27,7 @@ interface GameEngineOptions {
   onBossDefeat?: (bossType: string) => void;
   onPlayerHit?: () => void;
   onBossHit?: () => void;
+  onCoinCollect?: (x: number, y: number) => void;
   onPowerUpCollect?: (type: string, x: number, y: number) => void;
   onWeaponCollect?: (type: string, x: number, y: number) => void;
   onBossSpawn?: (bossType: string) => void;
@@ -34,7 +35,7 @@ interface GameEngineOptions {
 }
 
 export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = 'city', skinAbilities: SkinAbilities = { speedBonus: 0, coinMultiplier: 1, jumpPowerBonus: 0, shieldDurationBonus: 0 }, options: GameEngineOptions = {}) {
-  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit, onBossHit, onPowerUpCollect, onWeaponCollect, onBossSpawn, onPhaseTransition } = options;
+  const { isVip = false, onPlayerDamage, onBossDefeat, onPlayerHit, onBossHit, onCoinCollect, onPowerUpCollect, onWeaponCollect, onBossSpawn, onPhaseTransition } = options;
   const [justPickedUpWeapon, setJustPickedUpWeapon] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
@@ -1153,6 +1154,7 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           coinsCollected += coinValue;
           audioManager.playCoin();
           newParticles.push(...createParticles(coin.x + coin.width / 2, coin.y + coin.height / 2, ['#FFD700', '#FFA500'], 8));
+          onCoinCollect?.(coin.x + coin.width / 2, coin.y + coin.height / 2);
           return { ...coin, collected: true };
         }
         return { ...coin, x: newX, y: newY, animationFrame: (coin.animationFrame + 0.2) % 8 };
