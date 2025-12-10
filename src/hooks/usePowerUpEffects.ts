@@ -29,36 +29,41 @@ export function usePowerUpEffects() {
   const [explosions, setExplosions] = useState<PowerUpExplosion[]>([]);
   const animationRef = useRef<number | null>(null);
 
-  const triggerPowerUpCollection = useCallback((x: number, y: number, type: 'shield' | 'magnet' | 'multiplier' | 'weapon') => {
-    const colors: Record<string, { main: string; particles: string[] }> = {
-      shield: { main: '#00BFFF', particles: ['#00BFFF', '#87CEEB', '#FFFFFF', '#00FFFF'] },
-      magnet: { main: '#FF00FF', particles: ['#FF00FF', '#CC00CC', '#FF66FF', '#FFFFFF'] },
-      multiplier: { main: '#FFD700', particles: ['#FFD700', '#FFA500', '#FFFF00', '#FFFFFF'] },
-      weapon: { main: '#FF4500', particles: ['#FF4500', '#FF6600', '#FF8800', '#FFCC00'] },
+  const triggerPowerUpCollection = useCallback((x: number, y: number, type: 'shield' | 'magnet' | 'multiplier' | 'weapon' | 'coin') => {
+    const colors: Record<string, { main: string; particles: string[]; flash: boolean; particleCount: number }> = {
+      shield: { main: '#00BFFF', particles: ['#00BFFF', '#87CEEB', '#FFFFFF', '#00FFFF'], flash: true, particleCount: 25 },
+      magnet: { main: '#FF00FF', particles: ['#FF00FF', '#CC00CC', '#FF66FF', '#FFFFFF'], flash: true, particleCount: 25 },
+      multiplier: { main: '#FFD700', particles: ['#FFD700', '#FFA500', '#FFFF00', '#FFFFFF'], flash: true, particleCount: 25 },
+      weapon: { main: '#FF4500', particles: ['#FF4500', '#FF6600', '#FF8800', '#FFCC00'], flash: true, particleCount: 25 },
+      coin: { main: '#FFD700', particles: ['#FFD700', '#FFC700', '#FFFF00', '#FFFFFF', '#FFA500'], flash: false, particleCount: 12 },
     };
     
     const colorConfig = colors[type];
     
-    // Trigger screen flash
-    setScreenFlash({
-      color: colorConfig.main,
-      intensity: 0.4,
-      duration: 150,
-      startTime: Date.now(),
-    });
+    // Trigger screen flash (not for coins - too frequent)
+    if (colorConfig.flash) {
+      setScreenFlash({
+        color: colorConfig.main,
+        intensity: 0.4,
+        duration: 150,
+        startTime: Date.now(),
+      });
+    }
     
-    // Create explosion particles
-    const particleCount = 25;
+    // Create explosion particles - coins get smaller, faster burst
+    const particleCount = colorConfig.particleCount;
     const particles = [];
+    const isCoin = type === 'coin';
+    
     for (let i = 0; i < particleCount; i++) {
       const angle = (Math.PI * 2 * i) / particleCount;
-      const speed = 3 + Math.random() * 5;
+      const speed = isCoin ? 2 + Math.random() * 3 : 3 + Math.random() * 5;
       particles.push({
         x: x,
         y: y,
         velocityX: Math.cos(angle) * speed + (Math.random() - 0.5) * 2,
-        velocityY: Math.sin(angle) * speed + (Math.random() - 0.5) * 2,
-        size: 4 + Math.random() * 6,
+        velocityY: Math.sin(angle) * speed + (Math.random() - 0.5) * 2 - (isCoin ? 2 : 0), // coins burst upward
+        size: isCoin ? 2 + Math.random() * 3 : 4 + Math.random() * 6,
         alpha: 1,
         color: colorConfig.particles[Math.floor(Math.random() * colorConfig.particles.length)],
       });
@@ -72,11 +77,17 @@ export function usePowerUpEffects() {
       startTime: Date.now(),
     }]);
     
-    // Trigger haptic feedback
-    hapticsManager.successNotification();
+    // Trigger haptic feedback (light for coins, stronger for power-ups)
+    if (isCoin) {
+      hapticsManager.lightImpact();
+    } else {
+      hapticsManager.successNotification();
+    }
     
     // Auto-clear flash
-    setTimeout(() => setScreenFlash(null), 200);
+    if (colorConfig.flash) {
+      setTimeout(() => setScreenFlash(null), 200);
+    }
   }, []);
 
   const updateExplosions = useCallback(() => {

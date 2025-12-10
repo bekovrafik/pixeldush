@@ -897,8 +897,20 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.globalAlpha = 1;
     }
 
-    // Draw projectiles
+    // NOTE: Boss projectiles are now drawn separately via drawBossProjectiles
+    // This ensures they render behind the player, not in front
+
+    ctx.restore();
+  }, []);
+
+  // Draw boss projectiles separately (behind player)
+  const drawBossProjectiles = useCallback((ctx: CanvasRenderingContext2D, b: Boss | null) => {
+    if (!b) return;
+
     b.projectiles.forEach(p => {
+      // Skip if projectile is too close to player (like coins vanishing on collection)
+      if (isBeingCollected(p.x, p.y, p.width, p.height)) return;
+
       ctx.save();
       ctx.shadowColor = p.type === 'laser' ? '#FF0000' : p.type === 'fireball' ? '#FF6600' : '#FFFF00';
       ctx.shadowBlur = 15;
@@ -916,9 +928,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.fillRect(p.x + p.width + 25, p.y + p.height / 3, 15, p.height / 3);
       ctx.restore();
     });
-
-    ctx.restore();
-  }, []);
+  }, [isBeingCollected]);
 
   // Draw prominent boss health bar at top center (compact, positioned to avoid UI overlap)
   const drawBossHealthBar = useCallback((ctx: CanvasRenderingContext2D, b: Boss) => {
@@ -2084,10 +2094,13 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     drawBossDefeatEffects(ctx);
     drawUniqueBossDeathEffect(ctx, bossDeathEffect || null);
 
-    // Draw boss BEHIND player
+    // Draw boss BEHIND player (body only, projectiles drawn separately)
     if (boss) {
       drawBoss(ctx, boss);
     }
+
+    // Draw boss projectiles BEHIND player (so they don't appear in front)
+    drawBossProjectiles(ctx, boss);
 
     // Draw player (fighting stance when boss is active)
     const isFightingBoss = !!boss || (bossArena?.isActive && bossArena.bossesDefeated.length < 3);
@@ -2222,7 +2235,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossProjectiles, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchBlockRef = useRef(false);
 
