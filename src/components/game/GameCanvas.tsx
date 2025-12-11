@@ -491,13 +491,13 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     const dx = playerCenterX - itemCenterX;
     const dy = playerCenterY - itemCenterY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    // If item is within collection range, don't draw it
-    return dist < 35;
+    // If item is within collection range (60px threshold), don't draw it
+    return dist < 60;
   }, [player.x, player.y, player.width, player.height]);
 
   const drawCoin = useCallback((ctx: CanvasRenderingContext2D, coin: Coin) => {
-    // Skip drawing if coin is being collected (too close to player)
-    if (isBeingCollected(coin.x, coin.y, coin.width, coin.height)) return;
+    // Skip drawing if coin is collected or being collected (too close to player)
+    if (coin.collected || isBeingCollected(coin.x, coin.y, coin.width, coin.height)) return;
     
     const scale = 0.8 + Math.abs(Math.sin(coin.animationFrame)) * 0.2;
     const cx = coin.x + coin.width / 2, cy = coin.y + coin.height / 2;
@@ -514,8 +514,8 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
   }, [isBeingCollected]);
 
   const drawPowerUp = useCallback((ctx: CanvasRenderingContext2D, pu: PowerUp) => {
-    // Skip drawing if power-up is being collected (too close to player)
-    if (isBeingCollected(pu.x, pu.y, pu.width, pu.height)) return;
+    // Skip drawing if power-up is collected or being collected (too close to player)
+    if (pu.collected || isBeingCollected(pu.x, pu.y, pu.width, pu.height)) return;
     
     const cx = pu.x + pu.width / 2, cy = pu.y + pu.height / 2;
     const pulse = Math.sin(Date.now() / 200) * 3;
@@ -542,8 +542,8 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
   }, [isBeingCollected]);
 
   const drawWeaponPowerUp = useCallback((ctx: CanvasRenderingContext2D, wp: WeaponPowerUp) => {
-    // Skip drawing if weapon power-up is being collected (too close to player)
-    if (isBeingCollected(wp.x, wp.y, wp.width, wp.height)) return;
+    // Skip drawing if weapon power-up is collected or being collected (too close to player)
+    if (wp.collected || isBeingCollected(wp.x, wp.y, wp.width, wp.height)) return;
     
     const cx = wp.x + wp.width / 2, cy = wp.y + wp.height / 2;
     const pulse = Math.sin(Date.now() / 150) * 4;
