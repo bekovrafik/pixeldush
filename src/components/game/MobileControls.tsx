@@ -53,9 +53,12 @@ export function MobileControls({
       case 'fireball': return '🔥';
       case 'laser': return '⚡';
       case 'bomb': return '💣';
-      default: return '💫';
+      default: return '💫'; // Default energy shot
     }
   };
+
+  // Determine if we have a special weapon with ammo
+  const hasSpecialWeapon = activeWeapon && weaponAmmo > 0;
 
   // Only render if attack button should be shown (during boss fights)
   if (!showAttackButton) return null;
@@ -76,17 +79,21 @@ export function MobileControls({
           <button
             onTouchStart={handleAttackStart}
             onMouseDown={handleAttackStart}
-            className={`pointer-events-auto relative w-20 h-20 rounded-full bg-destructive/90 active:bg-destructive active:scale-95 transition-all shadow-lg border-2 border-destructive-foreground/30 flex flex-col items-center justify-center touch-none select-none ${
+            className={`pointer-events-auto relative w-20 h-20 rounded-full transition-all shadow-lg border-2 flex flex-col items-center justify-center touch-none select-none ${
+              hasSpecialWeapon 
+                ? 'bg-destructive/90 active:bg-destructive border-destructive-foreground/30' 
+                : 'bg-primary/80 active:bg-primary border-primary-foreground/30'
+            } active:scale-95 ${
               pulseAttack ? 'animate-pulse ring-2 ring-accent ring-opacity-75' : ''
             }`}
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <span className={`text-2xl ${activeWeapon ? 'animate-bounce' : ''}`}>{getWeaponEmoji()}</span>
-            <span className="font-pixel text-destructive-foreground text-[8px]">
-              {activeWeapon ? `${weaponAmmo}` : 'FIRE'}
+            <span className={`text-2xl ${hasSpecialWeapon ? 'animate-bounce' : ''}`}>{getWeaponEmoji()}</span>
+            <span className={`font-pixel text-[8px] ${hasSpecialWeapon ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>
+              {hasSpecialWeapon ? `x${weaponAmmo}` : 'FIRE'}
             </span>
-            {/* Weapon ammo indicator */}
-            {activeWeapon && weaponAmmo > 0 && (
+            {/* Weapon ammo indicator badge */}
+            {hasSpecialWeapon && (
               <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-accent flex items-center justify-center shadow-lg animate-pulse">
                 <span className="text-[10px] font-bold text-accent-foreground">{weaponAmmo}</span>
               </div>
