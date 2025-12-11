@@ -210,9 +210,6 @@ export default function Index() {
       shakeOnBossHit();
       hapticsManager.lightImpact();
     },
-    onCoinCollect: (x, y) => {
-      triggerPowerUpCollection(x, y, 'coin');
-    },
     onPowerUpCollect: (type, x, y) => {
       triggerPowerUpCollection(x, y, type as any);
     },

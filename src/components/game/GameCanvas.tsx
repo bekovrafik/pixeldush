@@ -482,8 +482,8 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
-  // Helper to check if collectible is too close to player (hide immediately on approach)
-  const isNearPlayer = useCallback((itemX: number, itemY: number, itemWidth: number, itemHeight: number) => {
+  // Helper to check if collectible is too close to player (being collected)
+  const isBeingCollected = useCallback((itemX: number, itemY: number, itemWidth: number, itemHeight: number) => {
     const playerCenterX = player.x + player.width / 2;
     const playerCenterY = player.y + player.height / 2;
     const itemCenterX = itemX + itemWidth / 2;
@@ -491,13 +491,13 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     const dx = playerCenterX - itemCenterX;
     const dy = playerCenterY - itemCenterY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    // Hide item when within 60px of player - ensures no overlap with character
-    return dist < 60;
+    // If item is within collection range, don't draw it
+    return dist < 35;
   }, [player.x, player.y, player.width, player.height]);
 
   const drawCoin = useCallback((ctx: CanvasRenderingContext2D, coin: Coin) => {
-    // Skip drawing if coin is near player (instant hide)
-    if (isNearPlayer(coin.x, coin.y, coin.width, coin.height)) return;
+    // Skip drawing if coin is being collected (too close to player)
+    if (isBeingCollected(coin.x, coin.y, coin.width, coin.height)) return;
     
     const scale = 0.8 + Math.abs(Math.sin(coin.animationFrame)) * 0.2;
     const cx = coin.x + coin.width / 2, cy = coin.y + coin.height / 2;
@@ -511,11 +511,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.beginPath();
     ctx.ellipse(cx, cy, (coin.width / 2) * scale, coin.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
-  }, [isNearPlayer]);
+  }, [isBeingCollected]);
 
   const drawPowerUp = useCallback((ctx: CanvasRenderingContext2D, pu: PowerUp) => {
-    // Skip drawing if power-up is near player (instant hide)
-    if (isNearPlayer(pu.x, pu.y, pu.width, pu.height)) return;
+    // Skip drawing if power-up is being collected (too close to player)
+    if (isBeingCollected(pu.x, pu.y, pu.width, pu.height)) return;
     
     const cx = pu.x + pu.width / 2, cy = pu.y + pu.height / 2;
     const pulse = Math.sin(Date.now() / 200) * 3;
@@ -539,11 +539,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.textBaseline = 'middle';
     ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', cx, cy);
     ctx.restore();
-  }, [isNearPlayer]);
+  }, [isBeingCollected]);
 
   const drawWeaponPowerUp = useCallback((ctx: CanvasRenderingContext2D, wp: WeaponPowerUp) => {
-    // Skip drawing if weapon power-up is near player (instant hide)
-    if (isNearPlayer(wp.x, wp.y, wp.width, wp.height)) return;
+    // Skip drawing if weapon power-up is being collected (too close to player)
+    if (isBeingCollected(wp.x, wp.y, wp.width, wp.height)) return;
     
     const cx = wp.x + wp.width / 2, cy = wp.y + wp.height / 2;
     const pulse = Math.sin(Date.now() / 150) * 4;
@@ -567,7 +567,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.textBaseline = 'middle';
     ctx.fillText(config.emoji, cx, cy);
     ctx.restore();
-  }, [isNearPlayer]);
+  }, [isBeingCollected]);
 
   const drawPlayerProjectile = useCallback((ctx: CanvasRenderingContext2D, proj: PlayerProjectile) => {
     ctx.save();
@@ -897,18 +897,8 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.globalAlpha = 1;
     }
 
-    // NOTE: Boss projectiles are now drawn separately via drawBossProjectiles
-    // This ensures they render behind the player, not in front
-
-    ctx.restore();
-  }, []);
-
-  // Draw boss projectiles separately (behind player)
-  const drawBossProjectiles = useCallback((ctx: CanvasRenderingContext2D, b: Boss | null) => {
-    if (!b) return;
-
+    // Draw projectiles
     b.projectiles.forEach(p => {
-      // Boss projectiles always render - they're attacks, not collectibles
       ctx.save();
       ctx.shadowColor = p.type === 'laser' ? '#FF0000' : p.type === 'fireball' ? '#FF6600' : '#FFFF00';
       ctx.shadowBlur = 15;
@@ -926,6 +916,8 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
       ctx.fillRect(p.x + p.width + 25, p.y + p.height / 3, 15, p.height / 3);
       ctx.restore();
     });
+
+    ctx.restore();
   }, []);
 
   // Draw prominent boss health bar at top center (compact, positioned to avoid UI overlap)
@@ -2092,13 +2084,10 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     drawBossDefeatEffects(ctx);
     drawUniqueBossDeathEffect(ctx, bossDeathEffect || null);
 
-    // Draw boss BEHIND player (body only, projectiles drawn separately)
+    // Draw boss BEHIND player
     if (boss) {
       drawBoss(ctx, boss);
     }
-
-    // Draw boss projectiles BEHIND player (so they don't appear in front)
-    drawBossProjectiles(ctx, boss);
 
     // Draw player (fighting stance when boss is active)
     const isFightingBoss = !!boss || (bossArena?.isActive && bossArena.bossesDefeated.length < 3);
@@ -2233,7 +2222,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
       ctx.restore();
     }
-  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossProjectiles, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
+  }, [player, obstacles, coins, powerUps, weaponPowerUps, playerProjectiles, particles, boss, bossWarning, bossArena, score, distance, coinCount, speed, health, maxHealth, isPlaying, selectedSkin, activePowerUps, activeWeapon, weaponAmmo, comboCount, hasDoubleJumped, isVip, screenFlash, powerUpExplosions, bossIntro, bossIntroShakeOffset, phaseTransition, bossDeathEffect, killCam, environmentalHazards, bossRage, drawBackground, drawGround, drawPlayer, drawObstacle, drawCoin, drawPowerUp, drawWeaponPowerUp, drawPlayerProjectile, drawBoss, drawBossHealthBar, drawBossDefeatEffects, drawUniqueBossDeathEffect, drawPhaseTransition, drawKillCam, drawEnvironmentalHazards, drawBossRageMeter, drawParticles, drawDoubleJumpTrail, drawUI, drawComboIndicator, drawBossProgressBar, drawBossWarning, drawBossArenaUI]);
 
   const touchBlockRef = useRef(false);
 
