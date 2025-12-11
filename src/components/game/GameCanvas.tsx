@@ -2012,6 +2012,18 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     prevDoubleJumpedRef.current = hasDoubleJumped;
   }, [hasDoubleJumped, player.x, player.y, player.width, player.height]);
 
+  // Clear trails when game restarts (score resets to 0)
+  const prevScoreRef = useRef(score);
+  useEffect(() => {
+    // Detect game restart: score was > 0 and now is 0
+    if (prevScoreRef.current > 0 && score === 0) {
+      trailPositionsRef.current = [];
+      doubleJumpTrailRef.current = [];
+      bossDefeatParticlesRef.current = [];
+    }
+    prevScoreRef.current = score;
+  }, [score]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
