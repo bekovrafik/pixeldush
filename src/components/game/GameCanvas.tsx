@@ -482,22 +482,25 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
-  // Helper to check if collectible is too close to player (being collected)
-  const isBeingCollected = useCallback((itemX: number, itemY: number, itemWidth: number, itemHeight: number) => {
-    const playerCenterX = player.x + player.width / 2;
-    const playerCenterY = player.y + player.height / 2;
-    const itemCenterX = itemX + itemWidth / 2;
-    const itemCenterY = itemY + itemHeight / 2;
-    const dx = playerCenterX - itemCenterX;
-    const dy = playerCenterY - itemCenterY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    // If item is within collection range (60px threshold), don't draw it
-    return dist < 60;
+  // Helper to check if collectible overlaps player zone (bounding box + 50px padding)
+  const isInPlayerZone = useCallback((itemX: number, itemY: number, itemWidth: number, itemHeight: number) => {
+    const padding = 50;
+    const playerLeft = player.x - padding;
+    const playerRight = player.x + player.width + padding;
+    const playerTop = player.y - padding;
+    const playerBottom = player.y + player.height + padding;
+    
+    const itemRight = itemX + itemWidth;
+    const itemBottom = itemY + itemHeight;
+    
+    // Check if item bounding box overlaps with player zone
+    return !(itemRight < playerLeft || itemX > playerRight || 
+             itemBottom < playerTop || itemY > playerBottom);
   }, [player.x, player.y, player.width, player.height]);
 
   const drawCoin = useCallback((ctx: CanvasRenderingContext2D, coin: Coin) => {
-    // Skip drawing if coin is collected or being collected (too close to player)
-    if (coin.collected || isBeingCollected(coin.x, coin.y, coin.width, coin.height)) return;
+    // Skip drawing if coin is collected or overlaps player zone
+    if (coin.collected || isInPlayerZone(coin.x, coin.y, coin.width, coin.height)) return;
     
     const scale = 0.8 + Math.abs(Math.sin(coin.animationFrame)) * 0.2;
     const cx = coin.x + coin.width / 2, cy = coin.y + coin.height / 2;
@@ -511,11 +514,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.beginPath();
     ctx.ellipse(cx, cy, (coin.width / 2) * scale, coin.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
-  }, [isBeingCollected]);
+  }, [isInPlayerZone]);
 
   const drawPowerUp = useCallback((ctx: CanvasRenderingContext2D, pu: PowerUp) => {
-    // Skip drawing if power-up is collected or being collected (too close to player)
-    if (pu.collected || isBeingCollected(pu.x, pu.y, pu.width, pu.height)) return;
+    // Skip drawing if power-up is collected or overlaps player zone
+    if (pu.collected || isInPlayerZone(pu.x, pu.y, pu.width, pu.height)) return;
     
     const cx = pu.x + pu.width / 2, cy = pu.y + pu.height / 2;
     const pulse = Math.sin(Date.now() / 200) * 3;
@@ -539,11 +542,11 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.textBaseline = 'middle';
     ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', cx, cy);
     ctx.restore();
-  }, [isBeingCollected]);
+  }, [isInPlayerZone]);
 
   const drawWeaponPowerUp = useCallback((ctx: CanvasRenderingContext2D, wp: WeaponPowerUp) => {
-    // Skip drawing if weapon power-up is collected or being collected (too close to player)
-    if (wp.collected || isBeingCollected(wp.x, wp.y, wp.width, wp.height)) return;
+    // Skip drawing if weapon power-up is collected or overlaps player zone
+    if (wp.collected || isInPlayerZone(wp.x, wp.y, wp.width, wp.height)) return;
     
     const cx = wp.x + wp.width / 2, cy = wp.y + wp.height / 2;
     const pulse = Math.sin(Date.now() / 150) * 4;
@@ -567,7 +570,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.textBaseline = 'middle';
     ctx.fillText(config.emoji, cx, cy);
     ctx.restore();
-  }, [isBeingCollected]);
+  }, [isInPlayerZone]);
 
   const drawPlayerProjectile = useCallback((ctx: CanvasRenderingContext2D, proj: PlayerProjectile) => {
     ctx.save();
