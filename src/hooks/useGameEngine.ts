@@ -1128,19 +1128,16 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       return updated;
     });
 
-    // Update coins - pre-filter collected items first
+    // Update coins
     setCoins(prev => {
-      // STEP 1: Remove already-collected coins immediately
-      const activeCoins = prev.filter(coin => !coin.collected);
-      
       let coinsCollected = 0;
       const newParticles: Particle[] = [];
       
-      const updated = activeCoins.map(coin => {
+      const updated = prev.map(coin => {
         let newX = coin.x - gameState.speed;
         let newY = coin.y;
         
-        if (hasMagnet) {
+        if (hasMagnet && !coin.collected) {
           const dx = player.x + PLAYER_WIDTH / 2 - (coin.x + coin.width / 2);
           const dy = player.y + PLAYER_HEIGHT / 2 - (coin.y + coin.height / 2);
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1150,17 +1147,16 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
           }
         }
         
-        if (checkCollision(player, { ...coin, x: newX, y: newY })) {
+        if (!coin.collected && checkCollision(player, { ...coin, x: newX, y: newY })) {
           const vipMultiplier = isVip ? 2 : 1;
           const coinValue = Math.round(1 * skinAbilities.coinMultiplier * vipMultiplier);
           coinsCollected += coinValue;
           audioManager.playCoin();
           newParticles.push(...createParticles(coin.x + coin.width / 2, coin.y + coin.height / 2, ['#FFD700', '#FFA500'], 8));
-          // Return null to mark for removal
-          return null;
+          return { ...coin, collected: true };
         }
         return { ...coin, x: newX, y: newY, animationFrame: (coin.animationFrame + 0.2) % 8 };
-      }).filter((coin): coin is NonNullable<typeof coin> => coin !== null && coin.x > -50);
+      }).filter(coin => coin.x > -50 && !coin.collected);
       
       if (coinsCollected > 0) {
         setGameState(gs => ({ ...gs, coins: gs.coins + coinsCollected }));
@@ -1169,37 +1165,33 @@ export function useGameEngine(selectedSkin: string, currentWorld: WorldTheme = '
       return updated;
     });
 
-    // Update power-ups - pre-filter collected items first
+    // Update power-ups
     setPowerUps(prev => {
-      const activePowerUps = prev.filter(pu => !pu.collected);
-      
-      const updated = activePowerUps.map(pu => {
-        if (checkCollision(player, pu)) {
+      const updated = prev.map(pu => {
+        if (!pu.collected && checkCollision(player, pu)) {
           activatePowerUp(pu.type);
           setParticles(p => [...p, ...createParticles(pu.x + pu.width / 2, pu.y + pu.height / 2, ['#FF00FF', '#00FFFF', '#FFFF00'], 12)]);
           onPowerUpCollect?.(pu.type, pu.x + pu.width / 2, pu.y + pu.height / 2);
-          return null;
+          return { ...pu, collected: true };
         }
         return { ...pu, x: pu.x - gameState.speed };
-      }).filter((pu): pu is NonNullable<typeof pu> => pu !== null && pu.x > -50);
+      }).filter(pu => pu.x > -50 && !pu.collected);
       return updated;
     });
 
-    // Update weapon power-ups - pre-filter collected items first
+    // Update weapon power-ups
     setWeaponPowerUps(prev => {
-      const activeWeapons = prev.filter(wp => !wp.collected);
-      
-      const updated = activeWeapons.map(wp => {
-        if (checkCollision(player, wp)) {
+      const updated = prev.map(wp => {
+        if (!wp.collected && checkCollision(player, wp)) {
           activateWeapon(wp.type);
           setParticles(p => [...p, ...createParticles(wp.x + wp.width / 2, wp.y + wp.height / 2, [WEAPON_CONFIGS[wp.type].color, '#FFFFFF'], 15)]);
           onWeaponCollect?.(wp.type, wp.x + wp.width / 2, wp.y + wp.height / 2);
           setJustPickedUpWeapon(true);
           setTimeout(() => setJustPickedUpWeapon(false), 3000);
-          return null;
+          return { ...wp, collected: true };
         }
         return { ...wp, x: wp.x - gameState.speed };
-      }).filter((wp): wp is NonNullable<typeof wp> => wp !== null && wp.x > -50);
+      }).filter(wp => wp.x > -50 && !wp.collected);
       return updated;
     });
 
