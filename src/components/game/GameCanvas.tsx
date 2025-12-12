@@ -482,25 +482,23 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.restore();
   }, []);
 
-  // Helper to check if collectible overlaps player zone (bounding box + 50px padding)
-  const isInPlayerZone = useCallback((itemX: number, itemY: number, itemWidth: number, itemHeight: number) => {
-    const padding = 50;
-    const playerLeft = player.x - padding;
-    const playerRight = player.x + player.width + padding;
-    const playerTop = player.y - padding;
-    const playerBottom = player.y + player.height + padding;
+  const drawCoin = useCallback((ctx: CanvasRenderingContext2D, coin: Coin, currentPlayer: Player) => {
+    // Skip drawing if coin is collected
+    if (coin.collected) return;
     
-    const itemRight = itemX + itemWidth;
-    const itemBottom = itemY + itemHeight;
+    // Check if coin overlaps player zone (100px padding) - MUST be inline with current player position
+    const padding = 100;
+    const playerLeft = currentPlayer.x - padding;
+    const playerRight = currentPlayer.x + currentPlayer.width + padding;
+    const playerTop = currentPlayer.y - padding;
+    const playerBottom = currentPlayer.y + currentPlayer.height + padding;
+    const coinRight = coin.x + coin.width;
+    const coinBottom = coin.y + coin.height;
     
-    // Check if item bounding box overlaps with player zone
-    return !(itemRight < playerLeft || itemX > playerRight || 
-             itemBottom < playerTop || itemY > playerBottom);
-  }, [player.x, player.y, player.width, player.height]);
-
-  const drawCoin = useCallback((ctx: CanvasRenderingContext2D, coin: Coin) => {
-    // Skip drawing if coin is collected or overlaps player zone
-    if (coin.collected || isInPlayerZone(coin.x, coin.y, coin.width, coin.height)) return;
+    // If coin overlaps player zone, don't draw it
+    if (!(coinRight < playerLeft || coin.x > playerRight || coinBottom < playerTop || coin.y > playerBottom)) {
+      return;
+    }
     
     const scale = 0.8 + Math.abs(Math.sin(coin.animationFrame)) * 0.2;
     const cx = coin.x + coin.width / 2, cy = coin.y + coin.height / 2;
@@ -514,11 +512,24 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.beginPath();
     ctx.ellipse(cx, cy, (coin.width / 2) * scale, coin.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
-  }, [isInPlayerZone]);
+  }, []);
 
-  const drawPowerUp = useCallback((ctx: CanvasRenderingContext2D, pu: PowerUp) => {
-    // Skip drawing if power-up is collected or overlaps player zone
-    if (pu.collected || isInPlayerZone(pu.x, pu.y, pu.width, pu.height)) return;
+  const drawPowerUp = useCallback((ctx: CanvasRenderingContext2D, pu: PowerUp, currentPlayer: Player) => {
+    // Skip drawing if power-up is collected
+    if (pu.collected) return;
+    
+    // Check if power-up overlaps player zone (100px padding) - inline with current player
+    const padding = 100;
+    const playerLeft = currentPlayer.x - padding;
+    const playerRight = currentPlayer.x + currentPlayer.width + padding;
+    const playerTop = currentPlayer.y - padding;
+    const playerBottom = currentPlayer.y + currentPlayer.height + padding;
+    const puRight = pu.x + pu.width;
+    const puBottom = pu.y + pu.height;
+    
+    if (!(puRight < playerLeft || pu.x > playerRight || puBottom < playerTop || pu.y > playerBottom)) {
+      return;
+    }
     
     const cx = pu.x + pu.width / 2, cy = pu.y + pu.height / 2;
     const pulse = Math.sin(Date.now() / 200) * 3;
@@ -542,11 +553,24 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.textBaseline = 'middle';
     ctx.fillText(pu.type === 'shield' ? '🛡️' : pu.type === 'magnet' ? '🧲' : '×2', cx, cy);
     ctx.restore();
-  }, [isInPlayerZone]);
+  }, []);
 
-  const drawWeaponPowerUp = useCallback((ctx: CanvasRenderingContext2D, wp: WeaponPowerUp) => {
-    // Skip drawing if weapon power-up is collected or overlaps player zone
-    if (wp.collected || isInPlayerZone(wp.x, wp.y, wp.width, wp.height)) return;
+  const drawWeaponPowerUp = useCallback((ctx: CanvasRenderingContext2D, wp: WeaponPowerUp, currentPlayer: Player) => {
+    // Skip drawing if weapon power-up is collected
+    if (wp.collected) return;
+    
+    // Check if weapon power-up overlaps player zone (100px padding) - inline with current player
+    const padding = 100;
+    const playerLeft = currentPlayer.x - padding;
+    const playerRight = currentPlayer.x + currentPlayer.width + padding;
+    const playerTop = currentPlayer.y - padding;
+    const playerBottom = currentPlayer.y + currentPlayer.height + padding;
+    const wpRight = wp.x + wp.width;
+    const wpBottom = wp.y + wp.height;
+    
+    if (!(wpRight < playerLeft || wp.x > playerRight || wpBottom < playerTop || wp.y > playerBottom)) {
+      return;
+    }
     
     const cx = wp.x + wp.width / 2, cy = wp.y + wp.height / 2;
     const pulse = Math.sin(Date.now() / 150) * 4;
@@ -570,7 +594,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     ctx.textBaseline = 'middle';
     ctx.fillText(config.emoji, cx, cy);
     ctx.restore();
-  }, [isInPlayerZone]);
+  }, []);
 
   const drawPlayerProjectile = useCallback((ctx: CanvasRenderingContext2D, proj: PlayerProjectile) => {
     ctx.save();
@@ -2066,14 +2090,14 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
     obstacles.forEach(obs => drawObstacle(ctx, obs));
 
-    // Draw coins - all coins in the array are valid to draw (collected ones are already removed)
-    coins.forEach(coin => drawCoin(ctx, coin));
+    // Draw coins - pass current player for accurate zone check
+    coins.forEach(coin => drawCoin(ctx, coin, player));
 
-    // Draw power-ups - all in array are valid (collected ones removed by game engine)
-    powerUps.forEach(pu => drawPowerUp(ctx, pu));
+    // Draw power-ups - pass current player for accurate zone check
+    powerUps.forEach(pu => drawPowerUp(ctx, pu, player));
 
-    // Draw weapon power-ups - all in array are valid (collected ones removed by game engine)
-    weaponPowerUps.forEach(wp => drawWeaponPowerUp(ctx, wp));
+    // Draw weapon power-ups - pass current player for accurate zone check
+    weaponPowerUps.forEach(wp => drawWeaponPowerUp(ctx, wp, player));
 
     // Draw player projectiles behind player
     playerProjectiles.forEach(proj => drawPlayerProjectile(ctx, proj));
