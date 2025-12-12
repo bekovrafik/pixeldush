@@ -484,6 +484,7 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
 
   // Helper to check if collectible is too close to player (being collected)
   const isBeingCollected = useCallback((itemX: number, itemY: number, itemWidth: number, itemHeight: number) => {
+    // Method 1: Distance-based check (increased to 100px)
     const playerCenterX = player.x + player.width / 2;
     const playerCenterY = player.y + player.height / 2;
     const itemCenterX = itemX + itemWidth / 2;
@@ -491,8 +492,22 @@ export function GameCanvas({ player, obstacles, coins, powerUps, weaponPowerUps,
     const dx = playerCenterX - itemCenterX;
     const dy = playerCenterY - itemCenterY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    // If item is within collection range (60px threshold), don't draw it
-    return dist < 60;
+    if (dist < 100) return true;
+    
+    // Method 2: Bounding box overlap check (safety net)
+    const playerLeft = player.x - 10;
+    const playerRight = player.x + player.width + 10;
+    const playerTop = player.y - 10;
+    const playerBottom = player.y + player.height + 10;
+    const itemLeft = itemX;
+    const itemRight = itemX + itemWidth;
+    const itemTop = itemY;
+    const itemBottom = itemY + itemHeight;
+    
+    const overlaps = !(itemRight < playerLeft || itemLeft > playerRight || 
+                      itemBottom < playerTop || itemTop > playerBottom);
+    
+    return overlaps;
   }, [player.x, player.y, player.width, player.height]);
 
   const drawCoin = useCallback((ctx: CanvasRenderingContext2D, coin: Coin) => {
